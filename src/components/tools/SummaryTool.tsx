@@ -1,18 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ScrollText } from 'lucide-react';
+import { Loader2, ScrollText } from 'lucide-react';
 import { useContent } from '@/contexts/ContentContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useTools } from '@/contexts/ToolsContext';
 import { generateSummary } from '@/utils/api';
 import ReactMarkdown from 'react-markdown';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { SpeakButton } from '@/components/ui/SpeakButton';
 
 export function SummaryTool() {
-  const { content, contentType } = useContent();
+  const { content, contentType, isTranscriptLoading } = useContent();
+  const { toolStates, updateToolState } = useTools();
   const { settings } = useSettings();
-  const [summary, setSummary] = useState<string | null>(null);
+  const [summary, setSummary] = useState(toolStates.summary || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,21 +28,26 @@ export function SummaryTool() {
   }, [content, contentType]);
 
   const handleGenerateSummary = async () => {
-    if (!content?.trim()) {
-      setError('Please add some content first!');
-      return;
-    }
+    if (!content || isLoading) return;
 
     setIsLoading(true);
     setError(null);
-    console.log('Generating summary for content:', {
-      length: content.length,
-      preview: content.substring(0, 100)
-    });
 
     try {
-      const result = await generateSummary(content, settings);
+      const result = await generateSummary(content, {
+        ...settings,
+        systemPrompt: contentType === 'youtube' 
+          ? `You are analyzing a YouTube video transcript. Create a comprehensive summary that:
+1. Captures the main topics and key points
+2. Follows the video's progression
+3. Highlights important concepts and examples
+4. Uses clear section headings
+5. Includes relevant quotes or timestamps when appropriate`
+          : undefined
+      });
+
       setSummary(result);
+      updateToolState('summary', result);
     } catch (error) {
       console.error('Error generating summary:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate summary. Please try again.');
@@ -51,10 +58,8 @@ export function SummaryTool() {
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <ScrollText className="mx-auto mb-4 text-red-500" size={24} />
-        <h3 className="text-lg font-semibold mb-2 text-red-500">Error</h3>
-        <p className="text-sm text-red-400 mb-4">{error}</p>
+      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+        <div className="text-red-500 mb-4">{error}</div>
         <button
           onClick={() => setError(null)}
           className="px-4 py-2 bg-red-600 rounded-lg text-sm hover:bg-red-700"
@@ -65,58 +70,66 @@ export function SummaryTool() {
     );
   }
 
-  if (!summary) {
-    return (
-      <div className="text-center py-8">
-        <ScrollText className="mx-auto mb-4" size={24} />
-        <h3 className="text-lg font-semibold mb-2">Generate Summary</h3>
-        <p className="text-sm text-neutral-400 mb-4">
-          Get a concise summary of your content
-        </p>
-        <button
-          onClick={handleGenerateSummary}
-          disabled={isLoading}
-          className="px-4 py-2 bg-neutral-800 rounded-lg text-sm hover:bg-neutral-700 disabled:opacity-50"
-        >
-          {isLoading ? 'Generating...' : 'Generate Summary'}
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-          <h3 className="text-lg font-medium text-white">Summary</h3>
-          <div className="flex items-center gap-2">
-            <SpeakButton text={summary} />
-            <CopyButton text={summary} />
+    <div className="flex flex-col h-full">
+      <div className="flex-1 p-4">
+        {isTranscriptLoading ? (
+          <div className="flex flex-col items-center justify-center h-full text-neutral-400 space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading transcript...</span>
           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            <div className="prose prose-invert max-w-none">
-              <ReactMarkdown
-                className="text-neutral-200 [&>h1]:text-2xl [&>h1]:font-bold [&>h1]:mb-4 [&>h2]:text-xl [&>h2]:font-semibold [&>h2]:mb-3 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-6 [&>ul>li]:mb-2 [&>ol]:list-decimal [&>ol]:pl-6 [&>ol>li]:mb-2"
-              >
-                {summary}
-              </ReactMarkdown>
+        ) : !content ? (
+          <div className="flex flex-col items-center justify-center h-full text-neutral-400 space-y-2">
+            <ScrollText className="w-6 h-6" />
+            <span>No content available</span>
+          </div>
+        ) : summary ? (
+          <div className="space-y-4">
+            <ReactMarkdown
+              className="prose prose-invert max-w-none text-neutral-200 
+                [&>h1]:text-2xl [&>h1]:font-bold [&>h1]:mb-4 
+                [&>h2]:text-xl [&>h2]:font-semibold [&>h2]:mb-3 
+                [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 
+                [&>p]:mb-4 [&>p]:leading-relaxed
+                [&>ul]:list-disc [&>ul]:pl-6 [&>ul>li]:mb-2 
+                [&>ol]:list-decimal [&>ol]:pl-6 [&>ol>li]:mb-2"
+            >
+              {summary}
+            </ReactMarkdown>
+            <div className="flex justify-end gap-2">
+              <CopyButton text={summary} />
+              <SpeakButton text={summary} />
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-neutral-400 space-y-2">
+            <ScrollText className="w-6 h-6" />
+            <span>Click generate to create a summary</span>
+          </div>
+        )}
+      </div>
 
-        <div className="p-4 border-t border-neutral-800 bg-[#080808]">
-          <button
-            onClick={handleGenerateSummary}
-            disabled={isLoading}
-            className="w-full px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <ScrollText className="w-4 h-4" />
-            {isLoading ? 'Generating...' : 'Generate New Summary'}
-          </button>
-        </div>
+      <div className="p-4 border-t border-neutral-800">
+        <button
+          onClick={handleGenerateSummary}
+          disabled={isLoading || !content || isTranscriptLoading}
+          className="w-full px-4 py-2 bg-neutral-800 text-white rounded-lg 
+            disabled:opacity-50 disabled:cursor-not-allowed 
+            hover:bg-neutral-700 transition-colors
+            flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Generating...</span>
+            </>
+          ) : (
+            <>
+              <ScrollText className="w-5 h-5" />
+              <span>{summary ? 'Generate New Summary' : 'Generate Summary'}</span>
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

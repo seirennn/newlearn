@@ -12,18 +12,44 @@ export async function POST(request: Request) {
       );
     }
 
-    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
-    const transcript = transcriptItems
-      .map(item => item.text)
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    try {
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+      
+      if (!transcriptItems || transcriptItems.length === 0) {
+        return NextResponse.json(
+          { error: 'No transcript available for this video' },
+          { status: 404 }
+        );
+      }
 
-    return NextResponse.json({ transcript });
+      // Format the transcript
+      const transcript = transcriptItems
+        .map(item => item.text)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!transcript) {
+        return NextResponse.json(
+          { error: 'No transcript content found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ transcript });
+    } catch (error: any) {
+      console.error('Error fetching transcript:', error);
+      return NextResponse.json(
+        { 
+          error: error.message || 'Failed to fetch transcript. Make sure the video exists and has captions available.'
+        },
+        { status: 404 }
+      );
+    }
   } catch (error) {
-    console.error('Error fetching transcript:', error);
+    console.error('Error in transcript API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch transcript' },
+      { error: 'Failed to process transcript request' },
       { status: 500 }
     );
   }

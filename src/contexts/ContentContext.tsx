@@ -5,10 +5,12 @@ interface ContentContextType {
   contentType: 'pdf' | 'text' | 'youtube';
   pdfUrl: string | null;
   youtubeUrl: string | null;
+  isTranscriptLoading: boolean;
   setContent: (content: string) => void;
   setContentType: (type: 'pdf' | 'text' | 'youtube') => void;
   setPdfUrl: (url: string | null) => void;
   setYoutubeUrl: (url: string | null) => void;
+  setIsTranscriptLoading: (loading: boolean) => void;
   resetContent: () => void;
 }
 
@@ -19,7 +21,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     content: '',
     contentType: 'text' as const,
     pdfUrl: null as string | null,
-    youtubeUrl: null as string | null
+    youtubeUrl: null as string | null,
+    isTranscriptLoading: false
   });
 
   const handleSetContent = useCallback((newContent: string) => {
@@ -50,12 +53,20 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const handleSetIsTranscriptLoading = useCallback((loading: boolean) => {
+    setState(prev => ({
+      ...prev,
+      isTranscriptLoading: loading
+    }));
+  }, []);
+
   const handleResetContent = useCallback(() => {
     setState({
       content: '',
       contentType: 'text',
       pdfUrl: null,
-      youtubeUrl: null
+      youtubeUrl: null,
+      isTranscriptLoading: false
     });
   }, []);
 
@@ -66,10 +77,12 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         contentType: state.contentType,
         pdfUrl: state.pdfUrl,
         youtubeUrl: state.youtubeUrl,
+        isTranscriptLoading: state.isTranscriptLoading,
         setContent: handleSetContent,
         setContentType: handleSetContentType,
         setPdfUrl: handleSetPdfUrl,
         setYoutubeUrl: handleSetYoutubeUrl,
+        setIsTranscriptLoading: handleSetIsTranscriptLoading,
         resetContent: handleResetContent,
       }}
     >
