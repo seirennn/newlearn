@@ -6,216 +6,295 @@ interface AIRequestOptions {
   temperature?: number;
   format?: 'json' | 'text';
   systemPrompt?: string;
+  history?: any[];
 }
 
 interface AISettings {
+  apiKeys: {
+    anthropic?: string;
+    openai?: string;
+    gemini?: string;
+  };
   aiModel: AIModel;
-  apiKey: string;
-  customEndpoint?: string;
   temperature: number;
 }
 
-async function makeAIRequest(endpoint: string, options: AIRequestOptions, settings: AISettings) {
-  if (!options.context && !options.prompt) {
-    throw new Error('No content provided for AI request');
+const SYSTEM_PROMPTS = {
+  chat: `You are an intelligent AI tutor. When analyzing educational content:
+1. First identify the subject matter, topic, and key concepts
+2. Understand the context and difficulty level
+3. Use this understanding to provide relevant, accurate, and helpful responses
+4. If the content appears to be a lecture or class material, identify the course subject and specific topic
+5. Reference specific parts of the content in your responses
+6. Provide examples and analogies when helpful`,
+
+  quiz: `You are an AI quiz generator. When creating questions:
+1. First analyze the content to identify the subject matter and key concepts
+2. Create questions that test understanding rather than just recall
+3. Ensure questions are directly related to the content provided
+4. Include a mix of concept-based and application-based questions
+5. Make questions progressively more challenging`,
+
+  flashcards: `You are an AI flashcard creator. When creating flashcards:
+1. First analyze the content to identify the subject and main concepts
+2. Create cards for key terms, concepts, and relationships
+3. Ensure both sides of each card are clear and concise
+4. Organize cards in a logical progression
+5. Focus on the most important information`,
+
+  summary: `You are an AI content analyzer. When summarizing:
+1. First identify the subject matter and overall topic
+2. Break down the content into main themes and key points
+3. Highlight important concepts, definitions, and relationships
+4. Maintain the original context and meaning
+5. Organize the summary in a clear, hierarchical structure`
+};
+
+export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISettings) {
+  const activeModel = settings.aiModel;
+  const apiKey = settings.apiKeys[activeModel];
+
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error(`No valid API key found for ${activeModel}. Please add your API key in settings.`);
   }
 
-  console.log('Making AI request:', {
-    endpoint,
-    contentLength: (options.context?.length || 0) + (options.prompt?.length || 0),
-    model: settings.aiModel
-  });
-
-  let apiUrl: string;
-  let headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  let body: any;
-
-  const combinedContent = options.context 
-    ? `Content for context:\n${options.context}\n\nUser request:\n${options.prompt}`
-    : options.prompt;
-
-  const systemPrompt = options.systemPrompt || 'You are a helpful AI tutor. When given content for context, use it to provide relevant and specific answers.';
-
-  switch (settings.aiModel) {
-    case 'openai':
-      apiUrl = 'https://api.openai.com/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${settings.apiKey}`;
-      body = {
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: combinedContent }
-        ],
-        temperature: options.temperature || settings.temperature,
-      };
-      break;
-
-    case 'gemini':
-      apiUrl = settings.customEndpoint || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-      headers['x-goog-api-key'] = settings.apiKey;
-      body = {
-        contents: [{
-          role: 'user',
-          parts: [{ text: `${systemPrompt}\n\n${combinedContent}` }]
-        }],
-        generationConfig: {
-          temperature: options.temperature || settings.temperature,
-        },
-      };
-      break;
-
-    default:
-      throw new Error(`Unsupported AI model: ${settings.aiModel}`);
-  }
-
+  const systemPrompt = options.systemPrompt || "You are a helpful AI assistant.";
+  
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+    switch (activeModel) {
+      case 'openai': {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...(options.context ? [{ 
+                role: 'system', 
+                content: `Here is the content to analyze and discuss:\n\n${options.context}`
+              }] : []),
+              ...(options.history || []),
+              { role: 'user', content: options.prompt }
+            ],
+            temperature: options.temperature || settings.temperature || 0.7,
+            max_tokens: 2000,
+            ...(options.format === 'json' ? {
+              response_format: { type: 'json_object' }
+            } : {})
+          })
+        });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`AI request failed: ${error}`);
-    }
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'OpenAI API request failed');
+        }
 
-    const data = await response.json();
-    let result = '';
-    
-    if (settings.aiModel === 'openai') {
-      result = data.choices[0].message.content;
-    } else {
-      result = data.candidates[0].content.parts[0].text;
-    }
-
-    if (options.format === 'json') {
-      try {
-        // Remove any markdown code block markers if present
-        const cleanJson = result.replace(/```json\n?|\n?```/g, '').trim();
-        return JSON.parse(cleanJson);
-      } catch (error) {
-        console.error('Failed to parse JSON response:', error);
-        throw new Error('Failed to parse AI response as JSON. Please try again.');
+        const data = await response.json();
+        return data.choices[0].message.content;
       }
-    }
 
-    return result;
-  } catch (error) {
-    console.error('AI request error:', error);
+      case 'anthropic': {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-2',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...(options.context ? [{ 
+                role: 'system', 
+                content: `Here is the content to analyze and discuss:\n\n${options.context}`
+              }] : []),
+              ...(options.history || []),
+              { role: 'user', content: options.prompt }
+            ],
+            max_tokens: 2000,
+            temperature: options.temperature || settings.temperature || 0.7
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Anthropic API request failed');
+        }
+
+        const data = await response.json();
+        return data.content[0].text;
+      }
+
+      case 'gemini': {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: systemPrompt },
+                  ...(options.context ? [{ text: `Here is the content to analyze and discuss:\n\n${options.context}` }] : []),
+                  ...(options.history || []).map(msg => ({ text: `${msg.role}: ${msg.content}` })),
+                  { text: options.prompt }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: options.temperature || settings.temperature || 0.7,
+              maxOutputTokens: 2000,
+              ...(options.format === 'json' ? {
+                candidateCount: 1
+              } : {})
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Gemini API request failed');
+        }
+
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
+      }
+
+      default:
+        throw new Error(`Unsupported AI model: ${activeModel}`);
+    }
+  } catch (error: any) {
+    console.error(`${activeModel} API error:`, error);
     throw error;
   }
 }
 
-export async function chatWithAI(messages: { role: string; content: string }[], settings: AISettings, contentContext?: string) {
-  const lastMessage = messages[messages.length - 1];
-  
-  return await makeAIRequest('chat', {
-    prompt: lastMessage.content,
-    context: contentContext,
-    temperature: 0.7,
-  }, settings);
+export async function makeAIRequest(
+  type: 'quiz' | 'flashcards' | 'summary' | 'chat',
+  data: any,
+  settings: AISettings
+) {
+  try {
+    const systemPrompt = data.systemPrompt || SYSTEM_PROMPTS[type];
+    const response = await makeAIAPIRequest({
+      prompt: data.prompt,
+      context: data.context,
+      systemPrompt,
+      format: data.format,
+      temperature: data.temperature,
+      history: data.history
+    }, settings);
+
+    return response;
+  } catch (error) {
+    console.error('Error making AI request:', error);
+    throw error;
+  }
 }
 
-export async function generateQuiz(content: string, settings: AISettings, quizSettings: { difficulty: string; numQuestions: number }) {
-  const systemPrompt = 'You are an expert quiz generator. Create clear, engaging multiple-choice questions that test understanding of the provided content.';
-  const prompt = `Generate a ${quizSettings.difficulty} difficulty quiz with ${quizSettings.numQuestions} questions based on the following content. For each question:
-1. Create a clear, specific question that tests understanding
-2. Provide 4 distinct answer options
-3. Indicate the correct answer (as index 0-3)
-4. Include a brief explanation of why the answer is correct
-
-Format the response as a JSON array with this structure:
+export async function generateQuiz(
+  content: string,
+  settings: AISettings,
+  quizSettings: { difficulty: string; numQuestions: number }
+) {
+  const prompt = `Generate a ${quizSettings.difficulty} difficulty quiz with ${quizSettings.numQuestions} multiple choice questions based on the content. Each question should have 4 options with one correct answer. Format your response as a JSON array with the following structure:
 [{
-  "question": "Question text",
-  "options": ["Option 1 text", "Option 2 text", "Option 3 text", "Option 4 text"],
-  "correctAnswer": 0,
-  "explanation": "Explanation text"
-}]
+  "question": "question text",
+  "options": ["option1", "option2", "option3", "option4"],
+  "answer": "correct option text"
+}]`;
 
-Make sure each question:
-- Is directly related to the content
-- Has clearly distinct options
-- Has only one correct answer (indicated by index 0-3)
-- Includes a helpful explanation`;
+  try {
+    const response = await makeAIAPIRequest({
+      prompt,
+      context: content,
+      format: 'json',
+      systemPrompt: `You are a quiz generator that ONLY returns valid JSON. Your response should be a JSON array of quiz questions. Do not include any additional text or formatting.`
+    }, settings);
 
-  const response = await makeAIRequest('quiz', {
-    prompt,
-    context: content,
-    temperature: 0.3,
-    format: 'json',
-    systemPrompt,
-  }, settings);
+    // Clean the response to ensure it's valid JSON
+    const cleanResponse = response.trim().replace(/^```json\s*|\s*```$/g, '');
+    const jsonStartIndex = cleanResponse.indexOf('[');
+    const jsonEndIndex = cleanResponse.lastIndexOf(']') + 1;
+    
+    if (jsonStartIndex === -1 || jsonEndIndex === -1) {
+      throw new Error('Invalid JSON response format');
+    }
 
-  // Ensure the response is in the correct format
-  if (Array.isArray(response)) {
-    return response.map(q => ({
-      ...q,
-      // Convert options object to array if needed
-      options: Array.isArray(q.options) ? q.options : 
-        q.options && typeof q.options === 'object' ? 
-          Object.values(q.options) : [],
-      // Convert letter answer to number if needed
-      correctAnswer: typeof q.correctAnswer === 'string' ? 
-        q.correctAnswer.charCodeAt(0) - 65 : // Convert 'A' to 0, 'B' to 1, etc.
-        q.correctAnswer
-    }));
+    const jsonStr = cleanResponse.slice(jsonStartIndex, jsonEndIndex);
+    return JSON.parse(jsonStr);
+  } catch (error) {
+    console.error('Error generating quiz:', error);
+    throw error;
   }
-
-  throw new Error('Invalid quiz response format');
 }
 
 export async function generateFlashcards(content: string, settings: AISettings) {
-  const systemPrompt = 'You are an expert at creating educational flashcards. Create clear, focused cards that help users learn and remember key concepts.';
-  const prompt = `Create a comprehensive set of flashcards based on the following content. For each important concept:
-1. Write a clear, specific question or prompt for the front
-2. Provide a concise but complete answer for the back
-
-Format the response as a JSON array with this structure:
+  const prompt = `Create a set of flashcards based on the content. Each flashcard should have a front (question/term) and back (answer/definition). Format your response as a JSON array with the following structure:
 [{
-  "front": "Question or prompt text",
-  "back": "Answer or explanation text"
-}]
+  "front": "front text",
+  "back": "back text"
+}]`;
 
-Guidelines:
-- Focus on key concepts, definitions, and relationships
-- Make each card self-contained and meaningful
-- Use clear, precise language
-- Cover all important points from the content
-- Create at least 5 cards, but no more than 15
-- Ensure front and back are properly paired`;
+  try {
+    const response = await makeAIAPIRequest({
+      prompt,
+      context: content,
+      format: 'json',
+      systemPrompt: `You are a flashcard generator that ONLY returns valid JSON. Your response should be a JSON array of flashcards. Do not include any additional text or formatting.`
+    }, settings);
 
-  return await makeAIRequest('flashcards', {
-    prompt,
-    context: content,
-    temperature: 0.3,
-    format: 'json',
-    systemPrompt,
-  }, settings);
+    // Clean the response to ensure it's valid JSON
+    const cleanResponse = response.trim().replace(/^```json\s*|\s*```$/g, '');
+    const jsonStartIndex = cleanResponse.indexOf('[');
+    const jsonEndIndex = cleanResponse.lastIndexOf(']') + 1;
+    
+    if (jsonStartIndex === -1 || jsonEndIndex === -1) {
+      throw new Error('Invalid JSON response format');
+    }
+
+    const jsonStr = cleanResponse.slice(jsonStartIndex, jsonEndIndex);
+    return JSON.parse(jsonStr);
+  } catch (error) {
+    console.error('Error generating flashcards:', error);
+    throw error;
+  }
 }
 
 export async function generateSummary(content: string, settings: AISettings) {
-  const systemPrompt = 'You are an expert at summarizing content. Create clear, well-structured summaries that capture the essential points while maintaining readability.';
-  const prompt = `Create a comprehensive yet concise summary of the following content. The summary should:
+  try {
+    return await makeAIAPIRequest({
+      prompt: 'Generate a comprehensive summary of the content.',
+      context: content,
+      systemPrompt: SYSTEM_PROMPTS.summary
+    }, settings);
+  } catch (error) {
+    console.error('Error generating summary:', error);
+    throw error;
+  }
+}
 
-1. Capture all key points and main ideas
-2. Maintain a logical flow and structure
-3. Be easy to understand
-4. Include important details and examples
-5. Be well-organized with clear sections
+export async function chatWithAI(messages: any[], settings: AISettings, content: string) {
+  try {
+    const lastMessage = messages[messages.length - 1];
+    const response = await makeAIAPIRequest({
+      prompt: lastMessage.content,
+      context: content,
+      systemPrompt: SYSTEM_PROMPTS.chat,
+      history: messages.slice(0, -1)
+    }, settings);
 
-Format the summary with:
-- Clear paragraphs
-- Bullet points for key items
-- Section headings if needed
-- Proper transitions between ideas`;
-
-  return await makeAIRequest('summary', {
-    prompt,
-    context: content,
-    temperature: 0.3,
-    systemPrompt,
-  }, settings);
+    return response;
+  } catch (error) {
+    console.error('Error in chatWithAI:', error);
+    throw error;
+  }
 }

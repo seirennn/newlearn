@@ -1,22 +1,28 @@
-import { useState, useRef, useEffect } from 'react';
-import { useContent } from '@/contexts/ContentContext';
-import { useSettings } from '@/contexts/SettingsContext';
-import { chatWithAI } from '@/utils/api';
-import { Loader2, Send, MessageSquare } from 'lucide-react';
+'use client';
 
-type Message = {
+import { useState, useEffect, useRef } from 'react';
+import { useContent } from '@/contexts/ContentContext';
+import { useTools } from '@/contexts/ToolsContext';
+import { useSettings } from '@/contexts/SettingsContext';
+import { makeAIRequest } from '@/utils/api';
+import { Loader2, Send, MessageSquare } from 'lucide-react';
+import { CopyButton } from '@/components/ui/CopyButton';
+import ReactMarkdown from 'react-markdown';
+
+interface Message {
   role: 'user' | 'assistant';
   content: string;
-};
+}
 
 export function ChatTool() {
-  const { content } = useContent();
+  const { content, contentType } = useContent();
+  const { toolStates, updateToolState, clearToolState } = useTools();
   const { settings } = useSettings();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(toolStates.chat || []);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,143 +32,152 @@ export function ChatTool() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  // Clear chat when switching content type
+  useEffect(() => {
+    clearToolState('chat');
+    setMessages([]);
+  }, [contentType, clearToolState]);
 
-    const newMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, newMessage]);
+  // Update tool state when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      updateToolState('chat', messages);
+    }
+  }, [messages, updateToolState]);
+
+  const getSystemPrompt = () => {
+    switch (contentType) {
+      case 'pdf':
+        return "You are analyzing a PDF document. Help the user understand the content, answer questions, and provide insights about the PDF. Base your responses only on the content provided.";
+      case 'youtube':
+        return "You are analyzing a YouTube video transcript that has been provided to you. The transcript contains the title, URL, and full text content of the video. Help the user understand the video content, answer questions, and provide insights about the video. Base your responses only on the transcript content that has been provided to you or relevant to the topics of the video.";
+      default:
+        return "You are analyzing text content. Help the user understand the content, answer questions, and provide insights about the text. Base your responses only on the content provided.";
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading || !content) return;
+
+    const newMessages = [
+      ...messages,
+      { role: 'user' as const, content: input }
+    ];
+    setMessages(newMessages);
     setInput('');
-    setError(null);
     setIsLoading(true);
 
     try {
-      const response = await chatWithAI([
-        ...messages,
-        newMessage
-      ], settings, content);
+      // Add initial context message if this is the first message
+      const contextualizedMessages = messages.length === 0 ? [
+        { role: 'system' as const, content: `Content type: ${contentType}. Here is the content to analyze:\n\n${content}` },
+        ...newMessages
+      ] : newMessages;
+
+      const response = await makeAIRequest('chat', {
+        prompt: input,
+        context: content,
+        systemPrompt: getSystemPrompt(),
+        history: contextualizedMessages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
+      }, {
+        apiKeys: settings.apiKeys,
+        aiModel: settings.aiModel,
+        temperature: settings.temperature
+      });
 
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-    } catch (err) {
-      setError('Failed to get response. Please try again.');
-      console.error('Chat error:', err);
+    } catch (error) {
+      console.error('Error generating response:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: "I apologize, but I encountered an error while processing your request. Please try again."
+        }
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const getPlaceholder = () => {
+    if (!content) {
+      return "Please load some content first...";
+    }
+    switch (contentType) {
+      case 'pdf':
+        return "Ask questions about the PDF...";
+      case 'youtube':
+        return "Ask questions about the video...";
+      default:
+        return "Ask questions about the text...";
     }
   };
 
-  if (messages.length === 0) {
-    return (
-      <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <MessageSquare className="w-12 h-12 mb-4 text-neutral-400" />
-          <h2 className="text-2xl font-bold mb-2 text-white">
-            Chat About Your Content
-          </h2>
-          <p className="text-neutral-400 mb-8 text-center max-w-md">
-            Ask questions about your content and get detailed explanations.
-          </p>
-        </div>
-
-        <div className="p-4 border-t border-neutral-800">
-          <div className="relative">
-            <textarea
-              className="w-full px-4 py-3 bg-neutral-900 rounded-lg text-white border border-neutral-800 hover:border-neutral-700 transition-colors focus:outline-none focus:border-neutral-600 resize-none"
-              placeholder="Ask a question..."
-              rows={3}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <button
-              className="absolute right-2 bottom-2 p-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-all focus:outline-none focus:ring-1 focus:ring-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <Send size={20} />
-              )}
-            </button>
-          </div>
-          {error && (
-            <div className="mt-4 p-4 bg-red-900/20 text-red-400 rounded-lg border border-red-900/50">
-              {error}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-      <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex flex-col h-full">
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`mb-4 ${
-              message.role === 'assistant'
-                ? 'pl-4'
-                : 'pl-4'
+            className={`flex ${
+              message.role === 'assistant' ? 'justify-start' : 'justify-end'
             }`}
           >
             <div
-              className={`p-4 rounded-lg ${
+              className={`max-w-[80%] p-3 rounded-lg ${
                 message.role === 'assistant'
-                  ? 'bg-neutral-900 border border-neutral-800'
-                  : 'bg-neutral-800'
+                  ? 'bg-neutral-800 text-white'
+                  : 'bg-blue-600 text-white'
               }`}
             >
-              <p className="text-white whitespace-pre-wrap">{message.content}</p>
+              <div className="flex items-start gap-2">
+                {message.role === 'assistant' && (
+                  <MessageSquare className="w-5 h-5 mt-1 flex-shrink-0" />
+                )}
+                <div className="flex-1 space-y-2">
+                  <ReactMarkdown className="prose prose-invert max-w-none">
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+                <CopyButton text={message.content} />
+              </div>
             </div>
           </div>
         ))}
-        {isLoading && (
-          <div className="pl-4">
-            <div className="p-4 rounded-lg bg-neutral-900 border border-neutral-800">
-              <Loader2 className="animate-spin text-neutral-400" size={20} />
-            </div>
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-neutral-800">
-        <div className="relative">
-          <textarea
-            className="w-full px-4 py-3 bg-neutral-900 rounded-lg text-white border border-neutral-800 hover:border-neutral-700 transition-colors focus:outline-none focus:border-neutral-600 resize-none"
-            placeholder="Type your message..."
-            rows={3}
+      <form onSubmit={handleSubmit} className="p-4 border-t border-neutral-800">
+        <div className="flex gap-2">
+          <input
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
+            placeholder={getPlaceholder()}
+            disabled={isLoading || !content}
+            className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
-            className="absolute right-2 bottom-2 p-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-all focus:outline-none focus:ring-1 focus:ring-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            type="submit"
+            disabled={!input.trim() || isLoading || !content}
+            className="px-4 py-2 bg-neutral-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition-colors"
           >
             {isLoading ? (
-              <Loader2 className="animate-spin" size={20} />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Send size={20} />
+              <Send className="w-5 h-5" />
             )}
           </button>
         </div>
-        {error && (
-          <div className="mt-4 p-4 bg-red-900/20 text-red-400 rounded-lg border border-red-900/50">
-            {error}
-          </div>
-        )}
-      </div>
+      </form>
     </div>
   );
 }

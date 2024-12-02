@@ -68,7 +68,12 @@ async function generateWithOpenAI(messages: { role: string; content: string }[])
   return response.choices[0]?.message?.content;
 }
 
-export async function generateFlashcards(text: string): Promise<any[]> {
+interface Flashcard {
+  question: string;
+  answer: string;
+}
+
+export async function generateFlashcards(text: string): Promise<Flashcard[]> {
   const settings = getSettings();
   const prompt = `Extract key concepts from this text and create at least 20 flashcards. For each concept, create a clear and concise question-answer pair. Return the result as a JSON array of objects with 'question' and 'answer' properties. Make sure the language is clear, professional, and easy to understand. Format example:
   [
@@ -106,13 +111,20 @@ export async function generateFlashcards(text: string): Promise<any[]> {
   }
 }
 
-export interface QuizOptions {
+interface QuizOptions {
   topic: string;
   difficulty: 'easy' | 'medium' | 'hard';
   numQuestions: number;
 }
 
-export async function generateQuizQuestions({ topic, difficulty, numQuestions }: QuizOptions): Promise<any[]> {
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
+
+export async function generateQuizQuestions({ topic, difficulty, numQuestions }: QuizOptions): Promise<QuizQuestion[]> {
   const settings = getSettings();
   const prompt = `Generate ${numQuestions} multiple choice questions about ${topic} at ${difficulty} difficulty level. Format the response as a JSON array of objects with this structure:
   {

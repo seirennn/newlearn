@@ -18,15 +18,9 @@ interface QuizGenerationOptions {
   categories: ('concept' | 'application' | 'analysis')[];
 }
 
-const QUIZ_PROMPTS = {
-  concept: 'Create a question testing understanding of key concepts',
-  application: 'Create a question testing ability to apply concepts',
-  analysis: 'Create a question testing analytical thinking'
-};
-
 export async function generateQuizQuestions(
-  content: string,
-  options: QuizGenerationOptions
+  _content: string,
+  _options: QuizGenerationOptions
 ): Promise<QuizQuestion[]> {
   // TODO: Replace with actual API calls to respective models
   const mockQuestions: QuizQuestion[] = [

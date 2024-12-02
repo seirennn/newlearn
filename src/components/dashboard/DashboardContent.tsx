@@ -1,17 +1,28 @@
 'use client';
 
+import 'regenerator-runtime/runtime';
 import { useState, useRef, useEffect } from 'react';
+import { Brain, FileText, MessageSquare, Upload, Youtube } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useContent } from '@/contexts/ContentContext';
+import { useTools } from '@/contexts/ToolsContext';
+import { PDFViewer } from '../content/PDFViewer';
+import { TextEditor } from '../content/TextEditor';
+import { YouTubeViewer } from '../content/YouTubeViewer';
+import { ResizeHandle } from './ResizeHandle';
 import { ChatTool } from '../tools/ChatTool';
 import { FlashcardsTool } from '../tools/FlashcardsTool';
 import { QuizTool } from '../tools/QuizTool';
 import { SummaryTool } from '../tools/SummaryTool';
-import { TextEditor } from '../content/TextEditor';
-import { PDFViewer } from '../content/PDFViewer';
-import { Brain, MessageSquare, BookOpen, ListChecks, FileText } from 'lucide-react';
-import { useContent } from '@/contexts/ContentContext';
 
 type Tool = 'chat' | 'flashcards' | 'quiz' | 'summary';
+type TabType = 'pdf' | 'text' | 'youtube';
+
+interface TabContent {
+  text: string;
+  pdf: string;
+  youtube: string;
+}
 
 interface ToolConfig {
   id: Tool;
@@ -22,197 +33,257 @@ interface ToolConfig {
 
 const tools: ToolConfig[] = [
   { id: 'chat', label: 'Chat', Icon: MessageSquare, component: ChatTool },
-  { id: 'flashcards', label: 'Flashcards', Icon: BookOpen, component: FlashcardsTool },
-  { id: 'quiz', label: 'Quiz', Icon: ListChecks, component: QuizTool },
+  { id: 'flashcards', label: 'Flashcards', Icon: FileText, component: FlashcardsTool },
+  { id: 'quiz', label: 'Quiz', Icon: Brain, component: QuizTool },
   { id: 'summary', label: 'Summary', Icon: FileText, component: SummaryTool }
 ];
 
-export function DashboardContent() {
-  const { content, setContent, contentType, setContentType } = useContent();
-  const [activeTool, setActiveTool] = useState<Tool>('chat');
-  const [activeTab, setActiveTab] = useState<'pdf' | 'text'>('text');
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = window.innerWidth * 0.8;
+const DEFAULT_PANEL_WIDTH = 450;
+
+const DashboardContent = () => {
+  const { setContent: setContextContent, contentType: contextType, setContentType, youtubeUrl, resetContent } = useContent();
+  const { activeTool, setActiveTool, resetAllTools } = useTools();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>(contextType as TabType);
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Update content type when tab changes
+  // Store content for each tab type separately
+  const [tabContent, setTabContent] = useState<TabContent>({
+    text: '',
+    pdf: '',
+    youtube: ''
+  });
+
+  // Reset all content and tools on page load
   useEffect(() => {
-    setContentType(activeTab);
-  }, [activeTab, setContentType]);
+    resetContent();
+    resetAllTools();
+    setTabContent({
+      text: '',
+      pdf: '',
+      youtube: ''
+    });
+    setPdfFile(null);
+  }, [resetContent, resetAllTools]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Set chat as default tool if none is selected
+  useEffect(() => {
+    if (!activeTool) {
+      setActiveTool('chat');
+    }
+  }, [activeTool, setActiveTool]);
+
+  // Update context when active tab changes
+  useEffect(() => {
+    if (activeTab === 'youtube') {
+      setContextContent(youtubeUrl || '');
+    } else {
+      setContextContent(tabContent[activeTab]);
+    }
+    setContentType(activeTab);
+  }, [activeTab, tabContent, youtubeUrl, setContextContent, setContentType]);
+
+  const handleContentChange = (newContent: string, type: TabType = activeTab) => {
+    setTabContent(prev => ({
+      ...prev,
+      [type]: newContent
+    }));
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setContentType(tab);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf') {
-      setPdfFile(file);
-      setActiveTab('pdf');
+      try {
+        if (file.size > 0) {
+          setPdfFile(file);
+          setActiveTab('pdf');
+        } else {
+          throw new Error('PDF file is empty');
+        }
+      } catch (error) {
+        console.error('Error reading PDF file:', error);
+        alert('Error reading PDF file. Please try another file.');
+      }
     } else {
       alert('Please select a valid PDF file');
     }
   };
 
-  const handlePDFImport = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleNewText = () => {
-    setActiveTab('text');
-    setContent('');
-  };
-
-  const handleContentChange = (newContent: string) => {
-    console.log('Content changed:', newContent.substring(0, 100));
-    setContent(newContent);
-  };
-
-  const renderTool = () => {
-    const activeToolConfig = tools.find(t => t.id === activeTool);
-    if (!activeToolConfig) return null;
-
-    if (!content?.trim()) {
-      return (
-        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 bg-[#080808] rounded-lg border border-neutral-800">
-          <div className="w-12 h-12 mb-4 text-neutral-400">
-            <activeToolConfig.Icon size={48} />
-          </div>
-          <h2 className="text-2xl font-bold mb-2 text-white">
-            No Content Available
-          </h2>
-          <p className="text-neutral-400 mb-8 text-center max-w-md">
-            {activeTab === 'pdf' 
-              ? 'Import a PDF to start using AI tools'
-              : 'Add some text in the editor to start using AI tools'}
-          </p>
-        </div>
-      );
-    }
-
-    const ToolComponent = activeToolConfig.component;
-    return <ToolComponent />;
+  const handleResize = (delta: number) => {
+    setPanelWidth(prev => {
+      const newWidth = prev + delta;
+      return Math.min(Math.max(newWidth, MIN_PANEL_WIDTH), MAX_PANEL_WIDTH);
+    });
   };
 
   const renderContent = () => {
-    if (activeTab === 'pdf') {
-      if (pdfFile) {
-        return <PDFViewer file={pdfFile} onTextExtracted={handleContentChange} />;
-      }
-      return (
-        <div className="h-full flex flex-col items-center justify-center text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-700 flex items-center justify-center mb-4">
-            <Brain className="h-8 w-8 text-neutral-400" />
-          </div>
-          <h3 className="text-lg font-medium mb-2">No PDF Selected</h3>
-          <p className="text-neutral-400 max-w-sm">
-            Import a PDF to get started with AI-powered learning tools
-          </p>
-          <div className="flex items-center gap-3 mt-6">
-            <button
-              onClick={handlePDFImport}
-              className="px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-all"
-            >
-              Import PDF
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileSelect}
-              className="hidden"
+    switch (activeTab) {
+      case 'pdf':
+        return (
+          <div className="h-full">
+            <PDFViewer 
+              file={pdfFile}
+              onTextExtracted={text => handleContentChange(text, 'pdf')}
             />
           </div>
-        </div>
-      );
-    } else {
-      return (
-        <TextEditor
-          content={content}
-          onChange={handleContentChange}
-        />
-      );
+        );
+      case 'youtube':
+        return (
+          <div className="h-full">
+            <YouTubeViewer />
+          </div>
+        );
+      case 'text':
+        return (
+          <div className="h-[calc(100vh-220px)]">
+            <TextEditor
+              content={tabContent.text}
+              onChange={text => handleContentChange(text, 'text')}
+            />
+          </div>
+        );
     }
   };
 
+  const renderTool = () => {
+    let currentContent = '';
+    
+    if (activeTab === 'youtube') {
+      currentContent = youtubeUrl || '';
+    } else {
+      currentContent = tabContent[activeTab];
+    }
+    
+    if (!currentContent?.trim()) {
+      return (
+        <div className="h-[calc(100vh-180px)] flex flex-col items-center justify-center bg-[#080808] rounded-lg border border-neutral-800">
+          <h2 className="text-2xl font-bold mb-2 text-white">No Content Available</h2>
+          <p className="text-neutral-400 text-center max-w-md">
+            {activeTab === 'pdf' 
+              ? 'Import a PDF to start using AI tools'
+              : activeTab === 'youtube'
+                ? 'Add a YouTube URL to start using AI tools'
+                : 'Add some text in the editor to start using AI tools'}
+          </p>
+        </div>
+      );
+    }
+
+    const ToolComponent = tools.find(t => t.id === activeTool)?.component;
+    return ToolComponent ? <ToolComponent /> : null;
+  };
+
   return (
-    <div className="flex-1 flex">
-      {/* Middle Panel - Content Viewer */}
-      <div className="flex-1 border-r border-neutral-800 flex flex-col">
+    <div ref={containerRef} className="flex-1 flex h-screen overflow-hidden">
+      <div className="flex-1 min-w-0 h-full bg-[#080808] flex flex-col overflow-hidden">
         <div className="p-6 border-b border-neutral-800">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('pdf')}
-              className={cn(
-                "px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                activeTab === 'pdf'
-                  ? "bg-white text-black"
-                  : "bg-neutral-800/50 hover:bg-neutral-800 text-white"
-              )}
-            >
-              PDF
-            </button>
-            <button
-              onClick={() => setActiveTab('text')}
-              className={cn(
-                "px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                activeTab === 'text'
-                  ? "bg-white text-black"
-                  : "bg-neutral-800/50 hover:bg-neutral-800 text-white"
-              )}
-            >
-              Text
-            </button>
-            {activeTab === 'text' && (
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
               <button
-                onClick={handleNewText}
-                className="ml-auto px-4 py-2 bg-neutral-800/50 hover:bg-neutral-800 rounded-lg transition-colors text-sm font-medium"
+                onClick={() => handleTabChange('pdf')}
+                className={cn(
+                  "px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                  activeTab === 'pdf'
+                    ? "bg-white text-black"
+                    : "bg-neutral-800/50 hover:bg-neutral-800 text-white"
+                )}
               >
-                New Text
+                PDF
               </button>
+              <button
+                onClick={() => handleTabChange('text')}
+                className={cn(
+                  "px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                  activeTab === 'text'
+                    ? "bg-white text-black"
+                    : "bg-neutral-800/50 hover:bg-neutral-800 text-white"
+                )}
+              >
+                Text
+              </button>
+              <button
+                onClick={() => handleTabChange('youtube')}
+                className={cn(
+                  "px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                  activeTab === 'youtube'
+                    ? "bg-white text-black"
+                    : "bg-neutral-800/50 hover:bg-neutral-800 text-white"
+                )}
+              >
+                YouTube
+              </button>
+            </div>
+            {activeTab === 'pdf' && (
+              <div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 rounded-lg transition-colors text-sm font-medium bg-neutral-800/50 hover:bg-neutral-800 text-white flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  {pdfFile ? 'Change PDF' : 'Import PDF'}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </div>
             )}
           </div>
         </div>
-        <div className="flex-1 p-6">
-          <div className="h-full rounded-xl border border-neutral-800 bg-neutral-900/50 backdrop-blur-sm overflow-hidden">
-            {renderContent()}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full p-6">
+            <div className="h-full rounded-xl border border-neutral-800 bg-neutral-900/50 backdrop-blur-sm overflow-hidden">
+              {renderContent()}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Tools */}
-      <div className="w-[450px] flex flex-col">
+      <ResizeHandle onResize={handleResize} />
+
+      <div
+        style={{ width: panelWidth }}
+        className="h-full bg-[#080808] border-l border-neutral-800 flex flex-col overflow-hidden"
+      >
         <div className="p-6 border-b border-neutral-800">
-          <div className="flex items-center">
-            {tools.map((tool) => {
-              const Icon = tool.Icon;
-              return (
-                <button
-                  key={tool.id}
-                  onClick={() => setActiveTool(tool.id)}
-                  className={cn(
-                    "relative flex-1 flex flex-col items-center gap-2 py-3 transition-all duration-200",
-                    activeTool === tool.id
-                      ? "text-white"
-                      : "text-neutral-400 hover:text-white"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl bg-neutral-800 flex items-center justify-center transition-all duration-200",
-                    activeTool === tool.id 
-                      ? "opacity-100 scale-100" 
-                      : "opacity-40 scale-90 hover:opacity-60 hover:scale-95"
-                  )}>
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-                  <span className="text-sm font-medium">{tool.label}</span>
-                  {activeTool === tool.id && (
-                    <div className="absolute -bottom-px left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent" />
-                  )}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap gap-2">
+            {tools.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTool(id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors text-sm font-medium",
+                  activeTool === id
+                    ? "bg-white text-black"
+                    : "bg-neutral-800/50 hover:bg-neutral-800 text-white"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="flex-1 p-6 overflow-y-auto">
-          {renderTool()}
+          <div className="h-full rounded-xl border border-neutral-800 bg-neutral-900/50 backdrop-blur-sm overflow-hidden">
+            {renderTool()}
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default DashboardContent;

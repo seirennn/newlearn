@@ -4,6 +4,8 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { generateSummary } from '@/utils/api';
 import { Loader2, Brain, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CopyButton } from '@/components/ui/CopyButton';
+import { SpeakButton } from '@/components/ui/SpeakButton';
 
 export function SummarizeTool() {
   const { content } = useContent();
@@ -120,28 +122,52 @@ export function SummarizeTool() {
 
   return (
     <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-      <div className="flex-1 flex flex-col p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-sm text-neutral-500 capitalize">
-            {summaryLength} summary
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          <div className="prose prose-invert max-w-none">
-            <p className="text-white whitespace-pre-wrap">{summary}</p>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-neutral-500 capitalize">
+              {summaryLength} summary
+            </span>
+            <div className="flex items-center gap-2">
+              <SpeakButton text={summary} />
+              <CopyButton text={summary} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {(['short', 'medium', 'long'] as const).map((length) => (
+              <button
+                key={length}
+                onClick={() => setSummaryLength(length)}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-xs capitalize transition-colors",
+                  summaryLength === length
+                    ? "bg-neutral-100 text-neutral-900"
+                    : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                )}
+              >
+                {length}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
 
-      <div className="p-4 border-t border-neutral-800">
-        <button
-          onClick={handleGenerateSummary}
-          className="w-full px-4 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-900 transition-colors flex items-center justify-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Generate New Summary
-        </button>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <div className="prose prose-invert max-w-none">
+              <div className="text-neutral-200 whitespace-pre-wrap">{summary}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-neutral-800 bg-[#080808]">
+          <button
+            onClick={handleGenerateSummary}
+            className="w-full px-4 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-900 transition-colors flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Generate New Summary
+          </button>
+        </div>
       </div>
     </div>
   );

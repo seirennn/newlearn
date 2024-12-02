@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, FileText, MessageSquare, Plus, User2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DashboardContent } from '@/components/dashboard/DashboardContent';
+import  DashboardContent  from '@/components/dashboard/DashboardContent';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 
 interface StudySession {

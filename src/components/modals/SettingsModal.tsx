@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { X, Check, Brain, Key, Settings as SettingsIcon, ChevronRight, Sun, Moon, Laptop } from 'lucide-react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { useModel, ModelType } from '@/contexts/ModelContext';
+import { useSettings } from '@/contexts/SettingsContext';
+import toast from 'react-hot-toast';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,9 +14,10 @@ interface SettingsModalProps {
 
 type Tab = 'general' | 'models' | 'api-keys';
 type Theme = 'light' | 'dark' | 'system';
+type AIModel = 'openai' | 'gemini' | 'anthropic';
 
 interface ModelConfig {
-  id: ModelType;
+  id: string;
   name: string;
   provider: string;
   description: string;
@@ -28,7 +31,7 @@ const TABS = [
   { id: 'api-keys', label: 'API Keys', icon: Key },
 ] as const;
 
-const THEMES: { id: Theme; label: string; icon: any }[] = [
+const THEMES: { id: Theme; label: string; icon: React.ElementType }[] = [
   { id: 'light', label: 'Light', icon: Sun },
   { id: 'dark', label: 'Dark', icon: Moon },
   { id: 'system', label: 'System', icon: Laptop },
@@ -36,17 +39,17 @@ const THEMES: { id: Theme; label: string; icon: any }[] = [
 
 const models: ModelConfig[] = [
   {
-    id: 'gpt-4',
+    id: 'openai-gpt4',
     name: 'GPT-4',
-    provider: 'OpenAI',
+    provider: 'openai',
     description: 'Most capable model, best for complex tasks',
     requiresKey: true,
     color: 'bg-gradient-to-br from-emerald-500 to-teal-500'
   },
   {
-    id: 'gpt-3.5-turbo',
+    id: 'openai-gpt3',
     name: 'GPT-3.5 Turbo',
-    provider: 'OpenAI',
+    provider: 'openai',
     description: 'Fast and efficient, good balance',
     requiresKey: true,
     color: 'bg-gradient-to-br from-blue-500 to-cyan-500'
@@ -54,23 +57,15 @@ const models: ModelConfig[] = [
   {
     id: 'gemini-pro',
     name: 'Gemini Pro',
-    provider: 'Google',
+    provider: 'gemini',
     description: "Advanced AI model with superior performance",
     requiresKey: true,
     color: 'bg-gradient-to-br from-indigo-500 to-purple-500'
   },
   {
-    id: 'gemini',
-    name: 'Gemini',
-    provider: 'Google',
-    description: "Free version with great capabilities",
-    requiresKey: false,
-    color: 'bg-gradient-to-br from-violet-500 to-fuchsia-500'
-  },
-  {
     id: 'claude-2',
     name: 'Claude 2',
-    provider: 'Anthropic',
+    provider: 'anthropic',
     description: 'Excellent at analysis and coding',
     requiresKey: true,
     color: 'bg-gradient-to-br from-orange-500 to-pink-500'
@@ -82,41 +77,96 @@ const API_PROVIDERS = [
     id: 'openai',
     label: 'OpenAI API Key',
     placeholder: 'sk-...',
-    icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg',
+    icon: '/images/openai.svg',
     description: 'Required for GPT-4 and GPT-3.5 Turbo'
   },
   { 
-    id: 'google',
-    label: 'Google API Key (Optional)',
-    placeholder: 'Enter your Google API key for Gemini Pro',
-    icon: 'https://www.gstatic.com/lamda/images/favicon_v1_150160cddff7f294ce30.svg',
-    description: 'Optional: Only needed for Gemini Pro. Regular Gemini is free!'
+    id: 'gemini',
+    label: 'Google Gemini API Key',
+    placeholder: 'Enter your Gemini API key',
+    icon: '/images/gemini.svg',
+    description: 'Required for Gemini Pro'
   },
   { 
     id: 'anthropic',
     label: 'Anthropic API Key',
     placeholder: 'Enter your Anthropic API key',
-    icon: 'https://www.anthropic.com/favicon.ico',
+    icon: '/images/anthropic.svg',
     description: 'Required for Claude 2'
   }
 ] as const;
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('general');
-  const { selectedModel, setSelectedModel } = useModel();
-  const [theme, setTheme] = useState<Theme>('system');
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({
-    openai: '',
-    google: '',
-    anthropic: ''
-  });
+  const { settings, updateSettings } = useSettings();
+  const [theme, setTheme] = useState<Theme>(settings.theme || 'dark');
+  const [localApiKeys, setLocalApiKeys] = useState<Record<string, string>>(settings.apiKeys || {});
+  const [selectedModelId, setSelectedModelId] = useState<string>(settings.aiModel || 'openai-gpt4');
+
+  // Initialize local state from settings
+  useEffect(() => {
+    setTheme(settings.theme || 'dark');
+    setLocalApiKeys(settings.apiKeys || {});
+    setSelectedModelId(settings.aiModel || 'openai-gpt4');
+  }, [settings]);
 
   const handleApiKeyChange = useCallback((provider: string, value: string) => {
-    setApiKeys(prev => ({
+    setLocalApiKeys(prev => ({
       ...prev,
-      [provider.toLowerCase()]: value
+      [provider]: value.trim()
     }));
   }, []);
+
+  const handleSaveSettings = useCallback(() => {
+    // Filter out empty API keys
+    const validApiKeys = Object.fromEntries(
+      Object.entries(localApiKeys)
+        .filter(([_, value]) => value && value.trim() !== '')
+    );
+
+    // Get the selected model's provider
+    const selectedModel = models.find(m => m.id === selectedModelId);
+    if (!selectedModel) {
+      toast.error('Invalid model selected');
+      return;
+    }
+
+    // Check if we have a valid API key for the selected model
+    if (!validApiKeys[selectedModel.provider]) {
+      toast.error(`Please add an API key for ${selectedModel.name}`);
+      return;
+    }
+
+    // Map model ID to provider for the settings
+    const aiModel = selectedModel.provider as AIModel;
+
+    // Update settings
+    updateSettings({
+      ...settings,
+      theme,
+      apiKeys: validApiKeys,
+      aiModel
+    });
+
+    toast.success(`Settings saved! Using ${selectedModel.name}`, {
+      style: {
+        background: '#1b1b1b',
+        color: '#fff',
+        border: '1px solid #333'
+      },
+      iconTheme: {
+        primary: '#10b981',
+        secondary: '#1b1b1b'
+      }
+    });
+
+    // Close the modal
+    onClose();
+  }, [settings, theme, localApiKeys, selectedModelId, updateSettings, onClose]);
+
+  const getProviderStatus = useCallback((provider: string) => {
+    return localApiKeys[provider] ? 'active' : 'missing';
+  }, [localApiKeys]);
 
   if (!isOpen) return null;
 
@@ -153,21 +203,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 })}
               </div>
             </div>
-
-            <div>
-              <h4 className="text-lg font-medium mb-4">Preferences</h4>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-800 hover:border-neutral-700 transition-colors">
-                  <div>
-                    <h5 className="font-medium mb-1">Auto-save</h5>
-                    <p className="text-sm text-neutral-400">Automatically save your work</p>
-                  </div>
-                  <div className="h-6 w-11 rounded-full bg-neutral-700 relative cursor-pointer transition-colors duration-200">
-                    <div className="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 transform translate-x-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         );
 
@@ -181,10 +216,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {models.map((model) => (
                 <button
                   key={model.id}
-                  onClick={() => setSelectedModel(model.id)}
+                  onClick={() => setSelectedModelId(model.id)}
                   className={cn(
                     "group relative w-full flex items-start gap-4 p-4 rounded-xl border transition-all duration-200",
-                    selectedModel === model.id
+                    selectedModelId === model.id
                       ? "border-neutral-500 bg-neutral-800/50 shadow-lg"
                       : "border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800/30"
                   )}
@@ -192,7 +227,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                     model.color,
-                    selectedModel === model.id ? "shadow-lg" : ""
+                    selectedModelId === model.id ? "shadow-lg" : ""
                   )}>
                     <Brain className="h-6 w-6 text-white" />
                   </div>
@@ -202,16 +237,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <span className="text-xs px-2 py-0.5 bg-neutral-800 rounded-full">
                         {model.provider}
                       </span>
+                      {model.requiresKey && !localApiKeys[model.provider] && (
+                        <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">
+                          Requires API Key
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-neutral-400">{model.description}</p>
                   </div>
                   <div className={cn(
                     "absolute right-4 top-4 w-5 h-5 rounded-full border-2 transition-colors duration-200",
-                    selectedModel === model.id
+                    selectedModelId === model.id
                       ? "bg-green-500 border-green-500"
                       : "border-neutral-600 group-hover:border-neutral-500"
                   )}>
-                    {selectedModel === model.id && (
+                    {selectedModelId === model.id && (
                       <Check className="h-4 w-4 text-white absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2" />
                     )}
                   </div>
@@ -231,10 +271,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {API_PROVIDERS.map((provider) => (
                 <div key={provider.id} className="space-y-2">
                   <div className="flex items-center gap-3 mb-3">
-                    <img
+                    <Image
                       src={provider.icon}
                       alt={provider.label}
-                      className="w-6 h-6 rounded-md"
+                      width={24}
+                      height={24}
+                      className="rounded-md"
                     />
                     <label className="block font-medium">{provider.label}</label>
                   </div>
@@ -242,12 +284,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="relative">
                     <input
                       type="password"
-                      value={apiKeys[provider.id]}
+                      value={localApiKeys[provider.id] || ''}
                       onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
                       placeholder={provider.placeholder}
                       className="w-full pl-4 pr-12 py-3 bg-neutral-900 rounded-lg border border-neutral-800 focus:outline-none focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 transition-all duration-200"
                     />
-                    {apiKeys[provider.id] && (
+                    {localApiKeys[provider.id] && (
                       <button
                         onClick={() => handleApiKeyChange(provider.id, '')}
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-neutral-800 rounded-md transition-colors"
@@ -260,8 +302,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               ))}
             </div>
             <div className="pt-6 border-t border-neutral-800">
-              <button className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-all duration-200 shadow-lg shadow-white/10">
-                Save API Keys
+              <button 
+                onClick={handleSaveSettings}
+                className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-all duration-200 shadow-lg shadow-white/10"
+              >
+                Save Settings
               </button>
             </div>
           </div>
@@ -274,8 +319,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       <div className="bg-[#0C0C0C] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex overflow-hidden border border-neutral-800/50">
         {/* Sidebar */}
         <div className="w-72 border-r border-neutral-800">
-          <div className="p-6 border-b border-neutral-800">
+          <div className="p-6 border-b border-neutral-800 flex items-center justify-between">
             <h2 className="text-xl font-semibold">Settings</h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
           <div className="p-3">
             {TABS.map((tab) => (
@@ -301,20 +352,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex items-center justify-between p-6 border-b border-neutral-800">
-            <h3 className="text-xl font-semibold">
-              {TABS.find(tab => tab.id === activeTab)?.label}
-            </h3>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-8">
             {renderTabContent()}
           </div>
         </div>

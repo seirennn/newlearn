@@ -1,52 +1,144 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+'use client';
 
-export type AIModel = 'openai' | 'gemini' | 'local' | 'custom';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+export type AIModel = 'openai' | 'anthropic' | 'gemini';
 
 interface Settings {
+  apiKeys: {
+    anthropic?: string;
+    openai?: string;
+    gemini?: string;
+  };
   aiModel: AIModel;
-  apiKey: string;
-  customEndpoint?: string;
-  temperature: number;
+  theme: 'light' | 'dark';
+  fontSize: number;
 }
 
 interface SettingsContextType {
   settings: Settings;
-  updateSettings: (newSettings: Partial<Settings>) => void;
+  updateSettings: (newSettings: Settings) => void;
+  activeProvider: AIModel;
 }
 
 const defaultSettings: Settings = {
+  apiKeys: {},
   aiModel: 'openai',
-  apiKey: '',
-  temperature: 0.7,
+  theme: 'dark',
+  fontSize: 16
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
+export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
+    // Try to load settings from localStorage on initial render
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('youlearn_settings');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse settings:', e);
+      try {
+        const savedSettings = localStorage.getItem('settings');
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          
+          // Validate the parsed settings
+          const validApiKeys = Object.fromEntries(
+            Object.entries(parsed.apiKeys || {})
+              .filter(([_, value]) => value && typeof value === 'string' && value.trim() !== '')
+              .map(([key, value]) => [key, (value as string).trim()])
+          );
+
+          // Ensure we have a valid AI model selected
+          const aiModel = validApiKeys[parsed.aiModel] 
+            ? parsed.aiModel 
+            : Object.keys(validApiKeys)[0] || 'openai';
+
+          const validSettings = {
+            ...defaultSettings,
+            ...parsed,
+            apiKeys: validApiKeys,
+            aiModel
+          };
+
+          console.log('Loaded settings:', {
+            apiKeys: Object.keys(validApiKeys),
+            aiModel: validSettings.aiModel
+          });
+
+          return validSettings;
         }
+      } catch (error) {
+        console.error('Error loading settings:', error);
       }
     }
     return defaultSettings;
   });
 
+  // Save settings to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('youlearn_settings', JSON.stringify(settings));
+    if (typeof window !== 'undefined') {
+      try {
+        // Validate settings before saving
+        const validApiKeys = Object.fromEntries(
+          Object.entries(settings.apiKeys)
+            .filter(([_, value]) => value && value.trim() !== '')
+            .map(([key, value]) => [key, value.trim()])
+        );
+
+        const validSettings = {
+          ...settings,
+          apiKeys: validApiKeys,
+          aiModel: validApiKeys[settings.aiModel] ? settings.aiModel : Object.keys(validApiKeys)[0] || 'openai'
+        };
+
+        console.log('Saving settings to localStorage:', {
+          apiKeys: Object.keys(validSettings.apiKeys),
+          aiModel: validSettings.aiModel
+        });
+
+        localStorage.setItem('settings', JSON.stringify(validSettings));
+      } catch (error) {
+        console.error('Error saving settings:', error);
+      }
+    }
   }, [settings]);
 
-  const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
+  const updateSettings = (newSettings: Settings) => {
+    try {
+      // Validate API keys
+      const validApiKeys = Object.fromEntries(
+        Object.entries(newSettings.apiKeys)
+          .filter(([_, value]) => value && value.trim() !== '')
+          .map(([key, value]) => [key, value.trim()])
+      );
+
+      // Ensure we have a valid AI model selected
+      const aiModel = validApiKeys[newSettings.aiModel]
+        ? newSettings.aiModel
+        : Object.keys(validApiKeys)[0] || 'openai';
+
+      const validSettings = {
+        ...newSettings,
+        apiKeys: validApiKeys,
+        aiModel
+      };
+
+      console.log('Updating settings:', {
+        apiKeys: Object.keys(validApiKeys),
+        aiModel: validSettings.aiModel
+      });
+
+      setSettings(validSettings);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+    }
   };
 
+  // Get the active provider based on available API keys
+  const activeProvider = settings.apiKeys[settings.aiModel]
+    ? settings.aiModel
+    : Object.keys(settings.apiKeys)[0] || 'openai';
+
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, activeProvider }}>
       {children}
     </SettingsContext.Provider>
   );

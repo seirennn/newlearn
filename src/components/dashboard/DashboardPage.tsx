@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, ZoomIn, ZoomOut, Plus, User2 } from 'lucide-react';
-import { PDFViewer } from '@/components/PDFViewer';
+import { Upload, ZoomIn, ZoomOut } from 'lucide-react';
+import { PDFViewer } from '@/components/content/PDFViewer';
 import { extractTextFromPDF } from '@/utils/pdf';
 import { ChatTool } from '@/components/tools/ChatTool';
 import { FlashcardsTool } from '@/components/tools/FlashcardsTool';
@@ -16,16 +16,13 @@ export function DashboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('chat');
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsLoading(true);
-    setError(null);
     setSelectedFile(file);
     setContentType('pdf');
 
@@ -34,7 +31,6 @@ export function DashboardPage() {
       setContextContent(extractedText);
     } catch (err) {
       console.error('PDF processing error:', err);
-      setError('Failed to extract text from PDF. The PDF viewer should still work.');
     } finally {
       setIsLoading(false);
     }
@@ -177,6 +173,22 @@ export function DashboardPage() {
           {activeTab === 'chat' && <ChatTool />}
           {activeTab === 'flashcards' && <FlashcardsTool />}
           {activeTab === 'summary' && <SummaryTool />}
+        </div>
+      </div>
+      <div className="w-[72px] h-full bg-[#080808] border-r border-neutral-800 flex flex-col items-center">
+        <div className="h-[72px] w-full flex items-center justify-center border-b border-neutral-800">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-3 rounded-xl hover:bg-neutral-800/50 transition-colors"
+          >
+            <Settings className="h-6 w-6 text-neutral-400" />
+          </button>
+        </div>
+        <div className="flex-1" />
+        <div className="pb-4 pt-4">
+          <button className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-700 flex items-center justify-center">
+            <User2 className="h-6 w-6 text-neutral-400" />
+          </button>
         </div>
       </div>
     </div>

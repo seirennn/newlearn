@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 type Question = {
   question: string;
   options: string[];
-  correctAnswer: number;
+  answer: string;
   explanation: string;
 };
 
@@ -74,14 +74,14 @@ export function QuizTool() {
 
   const getScore = () => {
     return questions.reduce((score, q, idx) => {
-      return score + (selectedAnswers[idx] === q.correctAnswer ? 1 : 0);
+      return score + (q.options[selectedAnswers[idx]] === q.answer ? 1 : 0);
     }, 0);
   };
 
   if (isLoading) {
     return (
       <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
           <div className="text-center">
             <Loader2 className="w-8 h-8 text-white animate-spin mb-4 mx-auto" />
             <p className="text-neutral-400">Generating quiz...</p>
@@ -94,7 +94,7 @@ export function QuizTool() {
   if (error) {
     return (
       <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
           <div className="text-center">
             <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-4 mx-auto">
               <Brain className="w-6 h-6 text-red-500" />
@@ -115,7 +115,7 @@ export function QuizTool() {
   if (questions.length === 0) {
     return (
       <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
           <div className="text-center">
             <div className="w-12 h-12 rounded-xl bg-neutral-800 flex items-center justify-center mb-4 mx-auto">
               <Brain className="w-6 h-6 text-white" />
@@ -134,10 +134,10 @@ export function QuizTool() {
                       key={diff}
                       onClick={() => setQuizSettings(prev => ({ ...prev, difficulty: diff }))}
                       className={cn(
-                        "px-4 py-2 rounded-lg capitalize transition-colors",
+                        "px-4 py-2 rounded-lg capitalize transition-colors text-sm",
                         quizSettings.difficulty === diff
-                          ? "bg-neutral-100 text-neutral-900"
-                          : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                          ? "bg-white text-black font-medium"
+                          : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
                       )}
                     >
                       {diff}
@@ -154,13 +154,13 @@ export function QuizTool() {
                       key={num}
                       onClick={() => setQuizSettings(prev => ({ ...prev, numQuestions: num }))}
                       className={cn(
-                        "px-4 py-2 rounded-lg transition-colors",
+                        "px-4 py-2 rounded-lg transition-colors text-sm",
                         quizSettings.numQuestions === num
-                          ? "bg-neutral-100 text-neutral-900"
-                          : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                          ? "bg-white text-black font-medium"
+                          : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
                       )}
                     >
-                      {num}
+                      {num} Questions
                     </button>
                   ))}
                 </div>
@@ -169,8 +169,9 @@ export function QuizTool() {
 
             <button
               onClick={handleStartQuiz}
-              className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-900 transition-colors"
+              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
             >
+              <Brain className="w-4 h-4" />
               Start Quiz
             </button>
           </div>
@@ -185,55 +186,55 @@ export function QuizTool() {
     
     return (
       <div className="h-[calc(100vh-200px)] flex flex-col bg-[#080808] rounded-lg border border-neutral-800">
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-2xl mx-auto">
             <div className="text-center mb-8">
               <div className={cn(
-                "w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center",
-                percentage >= 70 ? "bg-green-500/10" : "bg-yellow-500/10"
+                "w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl font-bold",
+                percentage >= 70 ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
               )}>
-                <span className="text-3xl font-bold">{percentage}%</span>
+                {percentage}%
               </div>
               
               <h3 className="text-xl font-medium mb-2 text-white">
                 Quiz Complete!
               </h3>
-              <p className="text-neutral-400 mb-6">
+              <p className="text-neutral-400">
                 You got {score} out of {questions.length} questions correct
               </p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 mb-8">
               {questions.map((q, idx) => (
                 <div key={idx} className="bg-neutral-900/50 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    {selectedAnswers[idx] === q.correctAnswer ? (
+                    {q.options[selectedAnswers[idx]] === q.answer ? (
                       <CheckCircle2 className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-500 mt-1 flex-shrink-0" />
                     )}
                     <div className="flex-1">
-                      <p className="text-white mb-2">{q.question}</p>
-                      <div className="space-y-1 mb-3">
+                      <p className="text-white mb-3 font-medium">{q.question}</p>
+                      <div className="space-y-2 mb-3">
                         {q.options.map((option, optIdx) => (
                           <div
                             key={optIdx}
                             className={cn(
-                              "px-3 py-2 rounded text-sm",
-                              optIdx === q.correctAnswer
-                                ? "bg-green-500/10 text-green-500"
+                              "px-4 py-2.5 rounded-lg text-sm transition-colors",
+                              option === q.answer
+                                ? "bg-green-500/10 text-green-500 font-medium"
                                 : optIdx === selectedAnswers[idx]
                                 ? "bg-red-500/10 text-red-500"
-                                : "text-neutral-400"
+                                : "bg-neutral-800 text-neutral-400"
                             )}
                           >
                             {option}
                           </div>
                         ))}
                       </div>
-                      {selectedAnswers[idx] !== q.correctAnswer && (
+                      {selectedAnswers[idx] !== undefined && q.options[selectedAnswers[idx]] !== q.answer && (
                         <p className="text-sm text-neutral-400">
-                          <span className="text-neutral-500">Explanation: </span>
+                          <span className="text-neutral-500 font-medium">Explanation: </span>
                           {q.explanation}
                         </p>
                       )}
@@ -243,20 +244,20 @@ export function QuizTool() {
               ))}
             </div>
 
-            <div className="mt-8">
-              <div className="flex flex-col gap-4 mb-6">
-                <div>
-                  <label className="block text-sm text-neutral-400 mb-2">Difficulty</label>
+            <div className="sticky bottom-0 pt-6 bg-[#080808]">
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="block text-sm text-neutral-400 font-medium">Difficulty</label>
                   <div className="flex gap-2 justify-center">
                     {(['easy', 'medium', 'hard'] as const).map((diff) => (
                       <button
                         key={diff}
                         onClick={() => setQuizSettings(prev => ({ ...prev, difficulty: diff }))}
                         className={cn(
-                          "px-4 py-2 rounded-lg capitalize transition-colors",
+                          "px-4 py-2 rounded-lg capitalize transition-colors text-sm",
                           quizSettings.difficulty === diff
-                            ? "bg-neutral-100 text-neutral-900"
-                            : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                            ? "bg-white text-black font-medium"
+                            : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
                         )}
                       >
                         {diff}
@@ -265,33 +266,34 @@ export function QuizTool() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm text-neutral-400 mb-2">Number of Questions</label>
+                <div className="space-y-3">
+                  <label className="block text-sm text-neutral-400 font-medium">Number of Questions</label>
                   <div className="flex gap-2 justify-center">
                     {[5, 10, 15].map((num) => (
                       <button
                         key={num}
                         onClick={() => setQuizSettings(prev => ({ ...prev, numQuestions: num }))}
                         className={cn(
-                          "px-4 py-2 rounded-lg transition-colors",
+                          "px-4 py-2 rounded-lg transition-colors text-sm",
                           quizSettings.numQuestions === num
-                            ? "bg-neutral-100 text-neutral-900"
-                            : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                            ? "bg-white text-black font-medium"
+                            : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
                         )}
                       >
-                        {num}
+                        {num} Questions
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
 
-              <button
-                onClick={handleStartQuiz}
-                className="w-full px-4 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-900 transition-colors"
-              >
-                Start New Quiz
-              </button>
+                <button
+                  onClick={handleStartQuiz}
+                  className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Brain className="w-4 h-4" />
+                  Start New Quiz
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -317,7 +319,7 @@ export function QuizTool() {
           </div>
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto pr-2">
           <h3 className="text-lg text-white mb-6">
             {questions[currentIndex].question}
           </h3>
@@ -326,7 +328,7 @@ export function QuizTool() {
             {questions[currentIndex].options.map((option, idx) => {
               const isSelected = selectedAnswers[currentIndex] === idx;
               const isAnswered = selectedAnswers[currentIndex] !== undefined;
-              const isCorrect = isAnswered && idx === questions[currentIndex].correctAnswer;
+              const isCorrect = isAnswered && option === questions[currentIndex].answer;
               const isIncorrect = isAnswered && isSelected && !isCorrect;
 
               return (
@@ -335,13 +337,13 @@ export function QuizTool() {
                   onClick={() => !isAnswered && handleAnswer(idx)}
                   disabled={isAnswered}
                   className={cn(
-                    "p-4 rounded-lg text-left transition-colors",
+                    "p-4 rounded-lg text-left transition-colors text-sm font-medium",
                     isCorrect
                       ? "bg-green-500/10 text-green-500"
                       : isIncorrect
                       ? "bg-red-500/10 text-red-500"
                       : isSelected
-                      ? "bg-neutral-100 text-neutral-900"
+                      ? "bg-white text-black"
                       : isAnswered
                       ? "bg-neutral-800 text-neutral-500"
                       : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"

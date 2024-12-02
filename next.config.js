@@ -1,5 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    domains: [
+      'www.anthropic.com',
+      'anthropic.com',
+      'www.openai.com',
+      'openai.com',
+      'upload.wikimedia.org'
+    ],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -13,6 +22,11 @@ const nextConfig = {
         path: require.resolve('path-browserify'),
       };
     }
+    // Add rule for pdf.worker.js
+    config.module.rules.push({
+      test: /pdf\.worker\.(min\.)?js/,
+      type: 'asset/resource'
+    });
     return config;
   },
   experimental: {
