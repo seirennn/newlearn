@@ -231,61 +231,44 @@ ${transcript.trim()}
   const videoId = validateAndExtractVideoId(url);
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
-      <form onSubmit={handleSubmit} className="p-4 border-b border-neutral-800">
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={url}
-              onChange={handleUrlChange}
-              placeholder="Enter YouTube URL or video ID"
-              className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-700"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={!isValid || isLoading}
-              className="px-4 py-2 bg-neutral-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition-colors min-w-[80px] flex items-center justify-center"
-            >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                'Load'
-              )}
-            </button>
-          </div>
-          {error && (
-            <div className="text-red-500 text-sm">{error}</div>
-          )}
-          {(isLoadingTranscript || isLoadingTitle) && (
-            <div className="text-neutral-400 text-sm flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {isLoadingTranscript && <span>Loading transcript...</span>}
-              {isLoadingTitle && <span>Loading video info...</span>}
-            </div>
-          )}
-        </div>
-      </form>
-
-      <div className="flex-1 flex items-center justify-center bg-neutral-900">
-        {videoId ? (
-          <div className="relative w-full h-full max-w-4xl mx-auto">
-            <iframe
-              ref={playerRef}
-              src={`https://www.youtube.com/embed/${videoId}`}
-              title="YouTube video player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
-            />
-          </div>
-        ) : (
-          <div className="text-neutral-400">
-            Enter a YouTube URL to get started
-          </div>
-        )}
+    <div className={`flex flex-col gap-4 p-4 ${className}`}>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={url}
+          onChange={handleUrlChange}
+          placeholder="Enter YouTube URL"
+          className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg 
+            focus:outline-none focus:ring-2 focus:ring-neutral-700
+            disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoading}
+        />
       </div>
+
+      {error && (
+        <div className="text-red-500 text-sm">
+          {error}
+        </div>
+      )}
+
+      {isValid && youtubeUrl && (
+        <div className="relative aspect-video w-full">
+          <iframe
+            ref={playerRef}
+            src={`https://www.youtube.com/embed/${validateAndExtractVideoId(youtubeUrl)}`}
+            className="absolute inset-0 w-full h-full rounded-lg"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
+
+      {(isLoading || isLoadingTranscript) && (
+        <div className="flex items-center justify-center gap-2 text-sm text-neutral-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Loading video content...</span>
+        </div>
+      )}
     </div>
   );
 }

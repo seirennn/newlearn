@@ -82,75 +82,65 @@ const handleAPIError = (error: any, attempt: number) => {
 
 export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISettings) {
   const activeModel = settings.aiModel;
-  const apiKey = settings.apiKeys[activeModel];
+  const apiKeys = settings.apiKeys || {};
+  const apiKey = apiKeys[activeModel];
 
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error(`No valid API key found for ${activeModel}. Please add your API key in settings.`);
-  }
-
-  // Debug log incoming request
-  console.log('AI Request Debug:', {
-    hasContext: !!options.context,
-    contextLength: options.context?.length,
-    isYouTube: options.context?.includes('[YOUTUBE_TRANSCRIPT_START]')
-  });
-
-  // Handle YouTube content
-  let finalSystemPrompt = options.systemPrompt || "You are a helpful AI assistant.";
-  let finalContext = options.context;
-
-  if (options.context?.includes('[YOUTUBE_TRANSCRIPT_START]')) {
-    // Extract transcript content
-    const transcriptStart = options.context.indexOf('TRANSCRIPT:');
-    const transcriptEnd = options.context.indexOf('[YOUTUBE_TRANSCRIPT_END]');
-    
-    if (transcriptStart !== -1 && transcriptEnd !== -1) {
-      const transcript = options.context
-        .slice(transcriptStart + 'TRANSCRIPT:'.length, transcriptEnd)
-        .trim();
-
-      // Create focused prompts for YouTube content
-      finalSystemPrompt = `You are analyzing a YouTube video transcript. Your responses must be based EXCLUSIVELY on the transcript content provided. Do not add external information.
-
-Instructions:
-1. Only use information from the provided transcript
-2. Reference specific parts of the transcript in your answers
-3. If asked about something not in the transcript, clearly state it's not covered
-4. Stay focused on the actual video content`;
-
-      finalContext = `Here is the complete transcript of the video. Base all responses on this content:\n\n${transcript}`;
-    }
+    throw new Error(`Please add your ${activeModel.toUpperCase()} API key in settings to use this feature.`);
   }
 
   // Prepare messages array
-  const messages = [
-    { role: 'system', content: finalSystemPrompt }
-  ];
+  const messages = [];
 
-  if (finalContext) {
-    messages.push({ role: 'system', content: finalContext });
+  // Add system prompt
+  if (options.systemPrompt) {
+    messages.push({ role: 'system', content: options.systemPrompt });
   }
 
+  // Add context if available
+  if (options.context) {
+    // For YouTube content, extract and format the transcript
+    if (options.context.includes('[YOUTUBE_TRANSCRIPT_START]')) {
+      const transcriptStart = options.context.indexOf('TRANSCRIPT:');
+      const transcriptEnd = options.context.indexOf('[YOUTUBE_TRANSCRIPT_END]');
+      
+      if (transcriptStart !== -1 && transcriptEnd !== -1) {
+        const transcript = options.context
+          .slice(transcriptStart + 'TRANSCRIPT:'.length, transcriptEnd)
+          .trim();
+
+        messages.push({ 
+          role: 'system', 
+          content: `Here is the video transcript to use as context:\n\n${transcript}`
+        });
+      }
+    } else {
+      // For PDF or text content
+      messages.push({ 
+        role: 'system', 
+        content: `Here is the content to use as context:\n\n${options.context}`
+      });
+    }
+  }
+
+  // Add conversation history if available
   if (options.history?.length) {
     messages.push(...options.history);
   }
 
+  // Add the main prompt
   messages.push({ role: 'user', content: options.prompt });
 
-  // Debug log final request
-  console.log('Final AI Request:', {
-    messageCount: messages.length,
-    hasSystemPrompt: !!finalSystemPrompt,
-    hasContext: !!finalContext,
-    model: activeModel
-  });
-
   let attempt = 0;
-  while (attempt < RATE_LIMIT.maxRetries) {
+  const maxRetries = 3;
+  
+  while (attempt < maxRetries) {
     try {
+      let response;
+      
       switch (activeModel) {
         case 'openai': {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -159,128 +149,89 @@ Instructions:
             body: JSON.stringify({
               model: 'gpt-4',
               messages,
-              temperature: options.temperature || settings.temperature || 0.7,
+              temperature: options.temperature || 0.3,
               max_tokens: 2000,
-              ...(options.format === 'json' ? {
-                response_format: { type: 'json_object' }
-              } : {})
+              response_format: options.format === 'json' ? { type: 'json_object' } : undefined
             })
           });
 
           if (!response.ok) {
             const error = await response.json();
-            const { shouldRetry, waitTime, error: processedError } = handleAPIError(error, attempt);
-            
-            if (shouldRetry) {
-              console.log(`Rate limit hit, retrying in ${waitTime}ms (attempt ${attempt + 1}/${RATE_LIMIT.maxRetries})`);
-              await delay(waitTime);
-              attempt++;
-              continue;
-            }
-            
-            throw processedError;
+            throw new Error(error.error?.message || 'OpenAI API error');
           }
 
           const data = await response.json();
-          return data.choices[0].message.content;
-        }
+          const content = data.choices[0].message.content;
 
-        case 'anthropic': {
-          const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-              model: 'claude-2',
-              messages,
-              max_tokens: 2000,
-              temperature: options.temperature || settings.temperature || 0.7
-            })
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            const { shouldRetry, waitTime, error: processedError } = handleAPIError(error, attempt);
-            
-            if (shouldRetry) {
-              console.log(`Rate limit hit, retrying in ${waitTime}ms (attempt ${attempt + 1}/${RATE_LIMIT.maxRetries})`);
-              await delay(waitTime);
-              attempt++;
-              continue;
+          // For JSON responses, validate the format
+          if (options.format === 'json') {
+            try {
+              JSON.parse(content); // Validate JSON format
+              return content;
+            } catch (e) {
+              throw new Error('Invalid JSON response from API');
             }
-            
-            throw processedError;
           }
 
-          const data = await response.json();
-          return data.content[0].text;
+          return content;
         }
 
         case 'gemini': {
-          const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+          response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'x-goog-api-key': apiKey
             },
             body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    { text: finalSystemPrompt },
-                    ...(finalContext ? [{ text: finalContext }] : []),
-                    ...(options.history || []).map(msg => ({ text: `${msg.role}: ${msg.content}` })),
-                    { text: options.prompt }
-                  ]
-                }
-              ],
+              contents: [{
+                role: 'user',
+                parts: [{ text: messages.map(m => m.content).join('\n\n') }]
+              }],
               generationConfig: {
-                temperature: options.temperature || settings.temperature || 0.7,
+                temperature: options.temperature || 0.3,
                 maxOutputTokens: 2000,
-                ...(options.format === 'json' ? {
-                  candidateCount: 1
-                } : {})
+                topK: 1,
+                topP: 0.8
               }
             })
           });
 
           if (!response.ok) {
             const error = await response.json();
-            const { shouldRetry, waitTime, error: processedError } = handleAPIError(error, attempt);
-            
-            if (shouldRetry) {
-              console.log(`Rate limit hit, retrying in ${waitTime}ms (attempt ${attempt + 1}/${RATE_LIMIT.maxRetries})`);
-              await delay(waitTime);
-              attempt++;
-              continue;
-            }
-            
-            throw processedError;
+            throw new Error(error.error?.message || 'Gemini API error');
           }
 
           const data = await response.json();
-          return data.candidates[0].content.parts[0].text;
+          const content = data.candidates[0].content.parts[0].text;
+
+          // For JSON responses, validate the format
+          if (options.format === 'json') {
+            try {
+              JSON.parse(content); // Validate JSON format
+              return content;
+            } catch (e) {
+              throw new Error('Invalid JSON response from API');
+            }
+          }
+
+          return content;
         }
 
         default:
           throw new Error(`Unsupported AI model: ${activeModel}`);
       }
-    } catch (error: any) {
-      console.error(`${activeModel} API error:`, error);
-      const { shouldRetry, waitTime, error: processedError } = handleAPIError(error, attempt);
+    } catch (error) {
+      console.error(`API request failed (attempt ${attempt + 1}/${maxRetries}):`, error);
       
-      if (shouldRetry) {
-        console.log(`Rate limit hit, retrying in ${waitTime}ms (attempt ${attempt + 1}/${RATE_LIMIT.maxRetries})`);
-        await delay(waitTime);
+      if (attempt < maxRetries - 1) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         attempt++;
         continue;
       }
       
-      throw processedError;
+      throw error;
     }
   }
 
@@ -292,22 +243,36 @@ export async function makeAIRequest(
   data: any,
   settings: AISettings
 ) {
-  try {
-    const systemPrompt = data.systemPrompt || SYSTEM_PROMPTS[type];
-    const response = await makeAIAPIRequest({
-      prompt: data.prompt,
-      context: data.context,
-      systemPrompt,
-      format: data.format,
-      temperature: data.temperature,
-      history: data.history
-    }, settings);
-
-    return response;
-  } catch (error) {
-    console.error('Error making AI request:', error);
-    throw error;
+  // Add JSON format requirement to system prompt
+  if (data.format === 'json') {
+    data.systemPrompt = `${data.systemPrompt}\n\nIMPORTANT: You MUST respond with ONLY a valid JSON object. Do not include any other text, markdown, or explanations in your response. The response must be parseable by JSON.parse().`;
+    data.temperature = 0.3; // Lower temperature for more consistent JSON
   }
+
+  const response = await makeAIAPIRequest(data, settings);
+
+  // For JSON responses, try to ensure valid JSON
+  if (data.format === 'json') {
+    try {
+      // Try to parse the response
+      JSON.parse(response);
+      return response;
+    } catch (e) {
+      // If parsing fails, try to extract JSON
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          JSON.parse(jsonMatch[0]);
+          return jsonMatch[0];
+        } catch (e2) {
+          throw new Error('Failed to parse JSON response');
+        }
+      }
+      throw new Error('No valid JSON found in response');
+    }
+  }
+
+  return response;
 }
 
 export async function generateSummary(content: string, settings: AISettings & { systemPrompt?: string, contentType?: string }) {
@@ -333,54 +298,188 @@ export async function generateSummary(content: string, settings: AISettings & { 
 }
 
 export async function generateQuiz(content: string, settings: AISettings, quizSettings: { difficulty: string; numQuestions: number }) {
-  try {
-    const systemPrompt = settings.contentType === 'youtube'
-      ? `You are creating a quiz based on a YouTube video transcript. Your task is to:
-1. Create questions that test understanding of the video content
-2. Base all questions EXCLUSIVELY on the transcript provided
-3. Include direct references to content from the video
-4. Create a mix of question types (multiple choice, true/false, short answer)
-5. Focus on key concepts and important details from the video
-6. Ensure questions follow the video's progression`
-      : SYSTEM_PROMPTS.quiz;
+  const systemPrompt = `You are creating a quiz based on the provided content. Generate a JSON response in this EXACT format:
 
+{
+  "questions": [
+    {
+      "question": "The question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0,
+      "explanation": "Why this answer is correct"
+    }
+  ]
+}
+
+REQUIREMENTS:
+1. Generate ${quizSettings.numQuestions} questions
+2. Difficulty level: ${quizSettings.difficulty}
+3. Each question must have exactly 4 options
+4. correctAnswer must be 0-3 (index of correct option)
+5. Include clear explanations
+6. Make all options plausible
+7. Ensure the response is VALID JSON
+8. Do not include any text outside the JSON object`;
+
+  try {
+    // First attempt with standard settings
+    try {
+      const response = await makeAIRequest('quiz', {
+        prompt: `Generate a ${quizSettings.difficulty} quiz with ${quizSettings.numQuestions} questions. Return ONLY a JSON object.`,
+        context: content,
+        systemPrompt,
+        format: 'json',
+        temperature: 0.3
+      }, settings);
+
+      const parsed = JSON.parse(response);
+      if (parsed.questions && Array.isArray(parsed.questions)) {
+        return parsed.questions;
+      }
+    } catch (e) {
+      console.log('First attempt failed, trying with modified prompt...');
+    }
+
+    // Second attempt with more explicit prompt
     const response = await makeAIRequest('quiz', {
-      prompt: `Generate a ${quizSettings.difficulty} difficulty quiz with ${quizSettings.numQuestions} questions.`,
+      prompt: `Create a quiz with ${quizSettings.numQuestions} ${quizSettings.difficulty} questions and format the response as a JSON object with a "questions" array. Each question should have "question", "options" (array of 4 strings), "correctAnswer" (0-3), and "explanation" properties. Do not include any text outside the JSON.`,
       context: content,
       systemPrompt,
-      format: 'json'
+      format: 'json',
+      temperature: 0.2
     }, settings);
 
-    return JSON.parse(response);
+    // Try to parse and validate the response
+    let parsed;
+    try {
+      parsed = JSON.parse(response);
+    } catch (e) {
+      // Try to extract JSON if parsing fails
+      const match = response.match(/\{[\s\S]*\}/);
+      if (!match) {
+        throw new Error('Could not find valid JSON in response');
+      }
+      parsed = JSON.parse(match[0]);
+    }
+
+    if (!parsed.questions || !Array.isArray(parsed.questions)) {
+      throw new Error('Invalid response format: missing questions array');
+    }
+
+    // Validate and clean the questions
+    const validatedQuestions = parsed.questions
+      .filter(q => (
+        q && 
+        typeof q === 'object' && 
+        q.question && 
+        Array.isArray(q.options) && 
+        q.options.length === 4 &&
+        typeof q.correctAnswer === 'number' &&
+        q.correctAnswer >= 0 &&
+        q.correctAnswer <= 3 &&
+        q.explanation
+      ))
+      .map(q => ({
+        question: String(q.question).trim(),
+        options: q.options.map(opt => String(opt).trim()),
+        correctAnswer: Number(q.correctAnswer),
+        explanation: String(q.explanation).trim()
+      }));
+
+    if (validatedQuestions.length === 0) {
+      throw new Error('No valid questions were generated');
+    }
+
+    return validatedQuestions;
   } catch (error) {
-    console.error('Error generating quiz:', error);
-    throw error;
+    console.error('Error in generateQuiz:', error);
+    throw new Error('Failed to generate quiz. Please try again.');
   }
 }
 
 export async function generateFlashcards(content: string, settings: AISettings) {
-  try {
-    const systemPrompt = settings.contentType === 'youtube'
-      ? `You are creating flashcards based on a YouTube video transcript. Your task is to:
-1. Create flashcards that cover key concepts from the video
-2. Use ONLY information present in the transcript
-3. Include direct quotes or examples from the video when relevant
-4. Follow the video's progression in card ordering
-5. Create clear, concise cards that test understanding
-6. Focus on the most important points from the video`
-      : SYSTEM_PROMPTS.flashcards;
+  const systemPrompt = `You are creating flashcards based on the provided content. Generate a JSON response in this EXACT format:
 
+{
+  "flashcards": [
+    {
+      "front": "Question or concept",
+      "back": "Answer or explanation"
+    }
+  ]
+}
+
+REQUIREMENTS:
+1. Generate at least 10 flashcards
+2. Each flashcard must have a front and back
+3. Front should be a question or key concept
+4. Back should be a clear, concise answer or explanation
+5. Cover the main topics from the content
+6. Make cards clear and focused
+7. Ensure the response is VALID JSON
+8. Do not include any text outside the JSON object`;
+
+  try {
+    // First attempt with standard settings
+    try {
+      const response = await makeAIRequest('flashcards', {
+        prompt: 'Create flashcards from this content. Return ONLY a JSON object.',
+        context: content,
+        systemPrompt,
+        format: 'json',
+        temperature: 0.3
+      }, settings);
+
+      const parsed = JSON.parse(response);
+      if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+        return parsed.flashcards;
+      }
+    } catch (e) {
+      console.log('First attempt failed, trying with modified prompt...');
+    }
+
+    // Second attempt with more explicit prompt
     const response = await makeAIRequest('flashcards', {
-      prompt: 'Create a comprehensive set of flashcards for this content.',
+      prompt: 'Create flashcards and format the response as a JSON object with a "flashcards" array containing objects with "front" and "back" properties. Do not include any text outside the JSON.',
       context: content,
       systemPrompt,
-      format: 'json'
+      format: 'json',
+      temperature: 0.2
     }, settings);
 
-    return JSON.parse(response);
+    // Try to parse and validate the response
+    let parsed;
+    try {
+      parsed = JSON.parse(response);
+    } catch (e) {
+      // Try to extract JSON if parsing fails
+      const match = response.match(/\{[\s\S]*\}/);
+      if (!match) {
+        throw new Error('Could not find valid JSON in response');
+      }
+      parsed = JSON.parse(match[0]);
+    }
+
+    if (!parsed.flashcards || !Array.isArray(parsed.flashcards)) {
+      throw new Error('Invalid response format: missing flashcards array');
+    }
+
+    // Validate and clean the flashcards
+    const validatedCards = parsed.flashcards
+      .filter(card => card && typeof card === 'object' && card.front && card.back)
+      .map(card => ({
+        front: String(card.front).trim(),
+        back: String(card.back).trim()
+      }));
+
+    if (validatedCards.length === 0) {
+      throw new Error('No valid flashcards were generated');
+    }
+
+    return validatedCards;
   } catch (error) {
-    console.error('Error generating flashcards:', error);
-    throw error;
+    console.error('Error in generateFlashcards:', error);
+    throw new Error('Failed to generate flashcards. Please try again.');
   }
 }
 

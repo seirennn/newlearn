@@ -43,7 +43,7 @@ const MAX_PANEL_WIDTH = window.innerWidth * 0.8;
 const DEFAULT_PANEL_WIDTH = 450;
 
 const DashboardContent = () => {
-  const { setContent: setContextContent, contentType: contextType, setContentType, youtubeUrl, resetContent } = useContent();
+  const { setContent: setContextContent, content: contextContent, contentType: contextType, setContentType, youtubeUrl, resetContent, isTranscriptLoading } = useContent();
   const { activeTool, setActiveTool, resetAllTools } = useTools();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>(contextType as TabType);
@@ -80,12 +80,13 @@ const DashboardContent = () => {
   // Update context when active tab changes
   useEffect(() => {
     if (activeTab === 'youtube') {
-      setContextContent(youtubeUrl || '');
+      // For YouTube, we rely on the YouTubeViewer to manage content
+      setContentType(activeTab);
     } else {
       setContextContent(tabContent[activeTab]);
+      setContentType(activeTab);
     }
-    setContentType(activeTab);
-  }, [activeTab, tabContent, youtubeUrl, setContextContent, setContentType]);
+  }, [activeTab, tabContent, setContextContent, setContentType]);
 
   const handleContentChange = (newContent: string, type: TabType = activeTab) => {
     setTabContent(prev => ({
@@ -158,9 +159,20 @@ const DashboardContent = () => {
     let currentContent = '';
     
     if (activeTab === 'youtube') {
-      currentContent = youtubeUrl || '';
+      currentContent = contextContent || '';
     } else {
       currentContent = tabContent[activeTab];
+    }
+    
+    if (activeTab === 'youtube' && youtubeUrl && isTranscriptLoading) {
+      return (
+        <div className="h-[calc(100vh-180px)] flex flex-col items-center justify-center bg-[#080808] rounded-lg border border-neutral-800">
+          <h2 className="text-2xl font-bold mb-2 text-white">Loading Content</h2>
+          <p className="text-neutral-400 text-center max-w-md">
+            Fetching video transcript...
+          </p>
+        </div>
+      );
     }
     
     if (!currentContent?.trim()) {

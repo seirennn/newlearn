@@ -32,14 +32,46 @@ export function FlashcardsTool() {
     setIsFlipped(false);
 
     try {
-      const newCards = await generateFlashcards(content, settings);
-      if (!Array.isArray(newCards) || newCards.length === 0) {
-        throw new Error('Invalid flashcards response');
+      const response = await generateFlashcards(content, settings);
+      let newCards;
+      
+      try {
+        // Try to parse the response, handling both string and object responses
+        newCards = typeof response === 'string' ? JSON.parse(response) : response;
+      } catch (parseError) {
+        console.error('Failed to parse flashcards response:', parseError);
+        throw new Error('Invalid response format from AI. Please try again.');
       }
-      setCards(newCards);
+      
+      // Validate the response format
+      if (!Array.isArray(newCards) || newCards.length === 0) {
+        throw new Error('No flashcards were generated. Please try again.');
+      }
+
+      // Ensure each card has the required properties and sanitize the data
+      const validatedCards = newCards.map((card, index) => {
+        if (!card || typeof card !== 'object') {
+          throw new Error(`Invalid flashcard format at index ${index}`);
+        }
+        
+        const front = card.front?.toString().trim();
+        const back = card.back?.toString().trim();
+        
+        if (!front || !back) {
+          throw new Error(`Missing content in flashcard at index ${index}`);
+        }
+        
+        return { front, back };
+      });
+
+      setCards(validatedCards);
     } catch (err) {
-      setError('Failed to generate flashcards. Please try again.');
       console.error('Flashcard generation error:', err);
+      setError(
+        err instanceof Error 
+          ? err.message 
+          : 'Failed to generate flashcards. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
