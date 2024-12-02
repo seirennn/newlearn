@@ -23,6 +23,12 @@ export function ChatTool() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<string | null>(null);
+  const transcriptLoadingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    transcriptLoadingRef.current = isTranscriptLoading;
+  }, [isTranscriptLoading]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,6 +41,7 @@ export function ChatTool() {
   useEffect(() => {
     clearToolState('chat');
     setMessages([]);
+    contentRef.current = null;
   }, [contentType, clearToolState]);
 
   useEffect(() => {
@@ -42,6 +49,39 @@ export function ChatTool() {
       updateToolState('chat', messages);
     }
   }, [messages, updateToolState]);
+
+  // Send welcome message when content is added
+  useEffect(() => {
+    // Don't proceed if no content
+    if (!content) return;
+
+    // For YouTube content
+    if (contentType === 'youtube') {
+      // Only proceed if we have content and transcript loading just finished
+      if (content !== contentRef.current && !isTranscriptLoading) {
+        contentRef.current = content;
+        const welcomeMessage = {
+          role: 'assistant' as const,
+          content: "Hello! I'm here to assist you navigate and understand your material, Let's get started, Feel free to ask me anything related to the YouTube video."
+        };
+        setMessages([welcomeMessage]);
+      }
+      return;
+    }
+
+    // For non-YouTube content
+    if (content !== contentRef.current) {
+      contentRef.current = content;
+      const message = contentType === 'pdf'
+        ? "Hello! I'm here to assist you navigate and understand your material, Let's get started, Feel free to ask me anything related to the PDF document"
+        : "Hello! I'm here to assist you navigate and understand your material, Let's get started, Feel free to ask me anything related to the Notes/Texts you have given."
+
+      setMessages([{
+        role: 'assistant',
+        content: message
+      }]);
+    }
+  }, [content, contentType, isTranscriptLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,16 +123,14 @@ export function ChatTool() {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${
-              message.role === 'assistant' ? 'justify-start' : 'justify-end'
-            }`}
+            className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'
+              }`}
           >
             <div
-              className={`max-w-[80%] rounded-lg p-3 ${
-                message.role === 'assistant'
-                  ? 'bg-neutral-800 text-white'
-                  : 'bg-blue-600 text-white'
-              }`}
+              className={`max-w-[80%] rounded-lg p-3 ${message.role === 'assistant'
+                ? 'bg-neutral-900 text-white'
+                : 'bg-blue-800 text-white'
+                }`}
             >
               <ReactMarkdown>{message.content}</ReactMarkdown>
               {message.role === 'assistant' && (

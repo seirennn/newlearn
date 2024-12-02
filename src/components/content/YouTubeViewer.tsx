@@ -18,7 +18,8 @@ const RETRY_DELAY = 1000; // 1 second
 export function YouTubeViewer({ className }: YouTubeViewerProps) {
   const { 
     setContent, 
-    setContentType, 
+    setContentType,
+    contentType, 
     youtubeUrl, 
     setYoutubeUrl,
     setIsTranscriptLoading 
@@ -33,6 +34,16 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
   const [lastLoadedVideoId, setLastLoadedVideoId] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const playerRef = useRef<HTMLIFrameElement>(null);
+
+  // Refetch when switching back to YouTube tab
+  useEffect(() => {
+    if (contentType === 'youtube' && youtubeUrl) {
+      const videoId = validateAndExtractVideoId(youtubeUrl);
+      if (videoId) {
+        handleLoadVideo(videoId);
+      }
+    }
+  }, [contentType]);
 
   useEffect(() => {
     if (youtubeUrl && youtubeUrl !== url) {
@@ -125,8 +136,8 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
   };
 
   const handleLoadVideo = async (videoId: string) => {
-    // Prevent reloading the same video
-    if (videoId === lastLoadedVideoId && !error) {
+    // Allow reloading when switching back to YouTube tab
+    if (videoId === lastLoadedVideoId && !error && contentType === 'youtube') {
       return;
     }
 
@@ -138,9 +149,9 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
     setRetryCount(0);
     
     try {
-      // Reset content first to ensure clean state
-      setContent('');
-      setContentType('youtube');
+      // Set YouTube URL first to preserve it
+      const fullUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      setYoutubeUrl(fullUrl);
       
       // Create AbortController for the requests
       const controller = new AbortController();
@@ -156,60 +167,36 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
             );
             if (!response.ok) throw new Error('Failed to fetch video title');
             const data = await response.json();
-            setIsLoadingTitle(false);
             return data;
           } catch (error) {
-            setIsLoadingTitle(false);
             console.warn('Error fetching title:', error);
             return { title: 'YouTube Video' }; // Fallback title
           }
         })(),
-        (async () => {
-          try {
-            const transcriptText = await fetchTranscript(videoId);
-            setIsLoadingTranscript(false);
-            return transcriptText;
-          } catch (error) {
-            setIsLoadingTranscript(false);
-            throw error; // Re-throw transcript errors as they are critical
-          }
-        })()
-      ]).finally(() => {
-        clearTimeout(timeoutId);
-        controller.abort(); // Cleanup any pending requests
-      });
+        fetchTranscript(videoId),
+      ]);
+
+      // Clear the timeout since requests completed
+      clearTimeout(timeoutId);
 
       const title = titleResponse.title || 'YouTube Video';
       
       // Format content for AI analysis
-      const formattedContent = `[YOUTUBE_TRANSCRIPT_START]
-Title: ${title}
+      const formattedContent = `Title: ${title}
 URL: https://www.youtube.com/watch?v=${videoId}
+
 TRANSCRIPT:
+${transcript.trim()}`;
 
-${transcript.trim()}
-[YOUTUBE_TRANSCRIPT_END]`;
-
-      // Update state
-      setContent(formattedContent);
-      setYoutubeUrl(url);
       setLastLoadedVideoId(videoId);
-
-      // Verify content was set
-      if (!formattedContent) {
-        throw new Error('Failed to format content');
-      }
-
-    } catch (error: any) {
-      console.error('Error loading video:', error);
-      const errorMessage = error.message || 'Failed to load video';
-      setError(
-        errorMessage.includes('transcript') 
-          ? `${errorMessage}. Please check if the video has captions available.`
-          : `${errorMessage}. Please check if the video exists and try again.`
-      );
-      setContent('');
-      setLastLoadedVideoId(null);
+      setContent(formattedContent);
+      setIsValid(true);
+      setError(null);  // Clear any previous errors
+    } catch (err: any) {
+      console.error('Error loading video:', err);
+      setError(err.message || 'Failed to load video');
+      setIsValid(false);
+      // Don't clear content or URL on error to preserve state
     } finally {
       setIsLoading(false);
       setIsLoadingTranscript(false);
@@ -231,44 +218,50 @@ ${transcript.trim()}
   const videoId = validateAndExtractVideoId(url);
 
   return (
-    <div className={`flex flex-col gap-4 p-4 ${className}`}>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={url}
-          onChange={handleUrlChange}
-          placeholder="Enter YouTube URL"
-          className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg 
-            focus:outline-none focus:ring-2 focus:ring-neutral-700
-            disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isLoading}
-        />
-      </div>
-
-      {error && (
-        <div className="text-red-500 text-sm">
-          {error}
-        </div>
-      )}
-
-      {isValid && youtubeUrl && (
-        <div className="relative aspect-video w-full">
-          <iframe
-            ref={playerRef}
-            src={`https://www.youtube.com/embed/${validateAndExtractVideoId(youtubeUrl)}`}
-            className="absolute inset-0 w-full h-full rounded-lg"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+    <div className={`flex flex-col gap-4 p-4 h-full ${className}`}>
+      <div className="flex flex-col gap-4 w-full h-full">
+        <div className="flex-none">
+          <input
+            type="text"
+            value={url}
+            onChange={handleUrlChange}
+            placeholder="Enter YouTube URL"
+            className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg 
+              focus:outline-none focus:ring-2 focus:ring-neutral-700
+              disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
           />
-        </div>
-      )}
 
-      {(isLoading || isLoadingTranscript) && (
-        <div className="flex items-center justify-center gap-2 text-sm text-neutral-400">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Loading video content...</span>
+          {error && (
+            <div className="text-red-500 text-sm mt-2">
+              {error}
+            </div>
+          )}
         </div>
-      )}
+
+        {videoId && (
+          <div className="flex-1 min-h-[60vh]">
+            <div className="relative w-full h-full">
+              <iframe
+                ref={playerRef}
+                src={`https://www.youtube.com/embed/${videoId}`}
+                className="absolute inset-0 w-full h-full rounded-lg border border-neutral-800"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        )}
+
+        {(isLoading || isLoadingTranscript) && (
+          <div className="flex-none flex items-center justify-center gap-2 text-sm text-neutral-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>
+              {isLoadingTranscript ? 'Loading transcript...' : 'Loading video...'}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

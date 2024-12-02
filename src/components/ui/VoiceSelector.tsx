@@ -61,77 +61,51 @@ export function VoiceSelector({
               >
                 {voices.map((voice) => (
                   <option key={voice.id} value={voice.id}>
-                    {voice.name} {voice.type === 'elevenlabs' && '(Premium Natural Voice)'}
+                    {voice.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {selectedVoice?.type === 'system' && (
-              <>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-300">
-                    Speed
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.1"
-                    value={rate}
-                    onChange={(e) => onRateChange(parseFloat(e.target.value))}
-                    className="w-full accent-blue-500"
-                  />
-                  <div className="flex justify-between text-xs text-neutral-400">
-                    <span>0.5x</span>
-                    <span>{rate}x</span>
-                    <span>2x</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-300">
-                    Pitch
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.1"
-                    value={pitch}
-                    onChange={(e) => onPitchChange(parseFloat(e.target.value))}
-                    className="w-full accent-blue-500"
-                  />
-                  <div className="flex justify-between text-xs text-neutral-400">
-                    <span>0.5x</span>
-                    <span>{pitch}x</span>
-                    <span>2x</span>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {selectedVoice?.type === 'elevenlabs' && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-300">
-                  Speed
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={rate}
-                  onChange={(e) => onRateChange(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500"
-                />
-                <div className="flex justify-between text-xs text-neutral-400">
-                  <span>0.5x</span>
-                  <span>{rate}x</span>
-                  <span>2x</span>
-                </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-neutral-300">
+                Speed
+              </label>
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={rate}
+                onChange={(e) => onRateChange(parseFloat(e.target.value))}
+                className="w-full accent-blue-500"
+              />
+              <div className="flex justify-between text-xs text-neutral-400">
+                <span>0.5x</span>
+                <span>{rate}x</span>
+                <span>2x</span>
               </div>
-            )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-neutral-300">
+                Pitch
+              </label>
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={pitch}
+                onChange={(e) => onPitchChange(parseFloat(e.target.value))}
+                className="w-full accent-blue-500"
+              />
+              <div className="flex justify-between text-xs text-neutral-400">
+                <span>0.5x</span>
+                <span>{pitch}x</span>
+                <span>2x</span>
+              </div>
+            </div>
           </div>
         </div>
         

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 interface ResizeHandleProps {
   onResize: (delta: number) => void;
@@ -14,9 +15,20 @@ export function ResizeHandle({ onResize }: ResizeHandleProps) {
     const startX = e.pageX;
     setIsDragging(true);
 
+    let lastX = startX;
+    let animationFrame: number;
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      const delta = startX - moveEvent.pageX;
-      onResize(delta);
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+
+      animationFrame = requestAnimationFrame(() => {
+        const currentX = moveEvent.pageX;
+        const delta = lastX - currentX;
+        lastX = currentX;
+        onResize(delta);
+      });
     };
 
     const handleMouseUp = () => {
@@ -24,6 +36,9 @@ export function ResizeHandle({ onResize }: ResizeHandleProps) {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -33,21 +48,24 @@ export function ResizeHandle({ onResize }: ResizeHandleProps) {
 
   return (
     <div
-      className={`
-        w-[6px] hover:bg-neutral-700 cursor-col-resize 
-        transition-colors group relative select-none
-        ${isDragging ? 'bg-neutral-600' : ''}
-      `}
+      className={cn(
+        "w-[6px] group relative select-none transition-colors duration-150",
+        "hover:bg-neutral-700/50 active:bg-neutral-600/70",
+        "cursor-col-resize",
+        isDragging && "bg-neutral-600/70"
+      )}
       onMouseDown={handleDrag}
     >
       <div 
-        className={`
-          absolute inset-y-0 left-[-2px] right-[-2px] 
-          transition-opacity duration-150
-          ${isDragging ? 'bg-neutral-500 opacity-100' : 'group-hover:bg-neutral-600 opacity-0 group-hover:opacity-100'}
-        `} 
+        className={cn(
+          "absolute inset-y-0 left-[-2px] right-[-2px]",
+          "transition-all duration-150",
+          isDragging 
+            ? "bg-neutral-500/50 opacity-100 blur-[0.5px]" 
+            : "group-hover:bg-neutral-600/50 opacity-0 group-hover:opacity-100"
+        )}
       />
-      <div className="absolute inset-y-0 left-1/2 w-[2px] bg-neutral-800" />
+      <div className="absolute inset-y-0 left-1/2 w-[1px] bg-neutral-800/90" />
     </div>
   );
 }

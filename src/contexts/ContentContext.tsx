@@ -35,7 +35,10 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const handleSetContentType = useCallback((type: 'pdf' | 'text' | 'youtube') => {
     setState(prev => ({
       ...prev,
-      contentType: type
+      contentType: type,
+      content: prev.content,
+      youtubeUrl: prev.youtubeUrl,
+      pdfUrl: prev.pdfUrl
     }));
   }, []);
 
@@ -49,7 +52,9 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const handleSetYoutubeUrl = useCallback((url: string | null) => {
     setState(prev => ({
       ...prev,
-      youtubeUrl: url
+      youtubeUrl: url,
+      contentType: url ? 'youtube' : prev.contentType,
+      content: url ? prev.content : ''
     }));
   }, []);
 
