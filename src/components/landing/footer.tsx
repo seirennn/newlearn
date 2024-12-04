@@ -1,8 +1,9 @@
 'use client';
 
 import { useTheme } from './theme-context';
-import { GraduationCap, Twitter, Github, Linkedin } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Twitter, Github, Linkedin } from 'lucide-react';
 
 const navigation = {
   product: [
@@ -55,20 +56,22 @@ export default function Footer() {
   return (
     <footer className={`${isDark ? 'bg-zinc-900' : 'bg-zinc-50'} border-t ${
       isDark ? 'border-zinc-800' : 'border-zinc-200'
-    }`}>
+    } overflow-hidden`}>
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           {/* Brand */}
           <div className="space-y-8">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className={`p-2 rounded-xl ${
-                isDark ? 'bg-zinc-800' : 'bg-zinc-100'
-              }`}>
-                <GraduationCap className={`w-6 h-6 ${
-                  isDark ? 'text-zinc-100' : 'text-zinc-900'
-                }`} />
+            <Link href="/" className="flex items-center group">
+              <div className="relative w-11 h-11 transition-transform duration-300 group-hover:scale-105">
+                <Image
+                  src={isDark ? '/whitelogo.svg' : '/blacklogo.svg'}
+                  alt="LearnFlow Logo"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
-              <span className={`text-xl font-medium ${
+              <span className={`text-lg font-medium tracking-tight ${
                 isDark ? 'text-zinc-100' : 'text-zinc-900'
               }`}>
                 LearnFlow

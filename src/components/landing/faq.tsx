@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from './theme-context';
 import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from "@/lib/utils";
 
 const faqs = [
   {
@@ -35,48 +36,10 @@ export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faq" className={`relative py-24 sm:py-32 ${isDark ? 'bg-black' : 'bg-white'} transition-colors duration-500 overflow-hidden`}>
-      {/* Gradient Orbs */}
-      <motion.div 
-        className="absolute inset-0 overflow-hidden pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        <motion.div 
-          className={`absolute w-[800px] h-[800px] rounded-full 
-            ${isDark ? 'bg-purple-500/10' : 'bg-purple-500/5'} 
-            blur-[120px] bottom-[-400px] left-[-200px] transition-colors duration-500`}
-          animate={{
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 20,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div 
-          className={`absolute w-[600px] h-[600px] rounded-full 
-            ${isDark ? 'bg-teal-500/10' : 'bg-teal-500/5'} 
-            blur-[100px] top-[-300px] right-[-100px] transition-colors duration-500`}
-          animate={{
-            x: [0, -30, 0],
-            y: [0, 50, 0],
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 15,
-            ease: "easeInOut",
-          }}
-        />
-      </motion.div>
-
-      {/* Grid Pattern */}
-      <div className={`absolute inset-0 bg-[linear-gradient(to_right,${isDark ? '#ffffff0a' : '#8884'}_1px,transparent_1px),linear-gradient(to_bottom,${isDark ? '#ffffff0a' : '#8884'}_1px,transparent_1px)] 
-        bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] transition-colors duration-500`} />
-
+    <section id="faq" className={cn(
+      "relative py-24 sm:py-32 overflow-hidden",
+      isDark ? "bg-black" : "bg-white"
+    )}>
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section Header */}
         <motion.div 
@@ -226,4 +189,3 @@ export default function FAQ() {
     </section>
   );
 }
-

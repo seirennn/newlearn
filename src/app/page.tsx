@@ -19,30 +19,35 @@ export default function LandingPage() {
             bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         </div>
 
-        <main className="flex-grow isolate">
-          {/* Lazy load components with suspense */}
-          <div className="relative">
-            <Navbar />
+        <main className="flex-grow">
+          <Navbar />
+          
+          <div className="scroll-mt-24" id="hero">
             <Suspense fallback={<div className="min-h-screen" />}>
               <Hero />
             </Suspense>
+          </div>
 
+          <div className="scroll-mt-24" id="features">
             <Suspense fallback={<div className="min-h-[800px]" />}>
               <Features />
             </Suspense>
+          </div>
 
+          <div className="scroll-mt-24" id="how-it-works">
             <Suspense fallback={<div className="min-h-[600px]" />}>
               <HowItWorks />
             </Suspense>
+          </div>
 
+          <div className="scroll-mt-24" id="faq">
             <Suspense fallback={<div className="min-h-[600px]" />}>
               <FAQ />
             </Suspense>
-
-            
           </div>
+
+          <Footer />
         </main>
-        <Footer />
       </div>
     </ThemeProvider>
   );

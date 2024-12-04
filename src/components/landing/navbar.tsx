@@ -40,14 +40,14 @@ export default function Navbar() {
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      const navbarHeight = 80;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - navbarHeight;
-
+      const yOffset = -100; 
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      
       window.scrollTo({
-        top: offsetPosition,
+        top: y,
         behavior: 'smooth'
       });
+      setIsDropdownOpen(false);
     }
   };
   
@@ -55,8 +55,8 @@ export default function Navbar() {
     <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-6xl">
       <div className={`${
         isDark 
-          ? 'bg-zinc-900/40 border-zinc-800/30' 
-          : 'bg-white/40 border-zinc-200/30'
+          ? 'bg-zinc-900/40 border-zinc-800' 
+          : 'bg-white/40 border-zinc-200'
         } backdrop-blur-md border rounded-xl shadow-sm transition-all duration-300`}
       >
         <div className="flex items-center justify-between h-14 px-5">
