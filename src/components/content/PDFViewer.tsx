@@ -22,7 +22,7 @@ export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [scale, setScale] = useState(1.5);
+  const [scale, setScale] = useState(1.25);
   const [rotation, setRotation] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);

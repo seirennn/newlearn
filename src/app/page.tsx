@@ -4,8 +4,8 @@ import Hero from '@/components/landing/hero';
 import Features from '@/components/landing/features';
 import HowItWorks from '@/components/landing/how-it-works';
 import FAQ from '@/components/landing/faq';
-import PrivacyPolicy from '@/components/landing/privacy-policy';
 import Footer from '@/components/landing/footer';
+import Navbar from '@/components/landing/navbar';
 import { ThemeProvider } from '@/components/landing/theme-context';
 import { Suspense } from 'react';
 
@@ -22,6 +22,7 @@ export default function LandingPage() {
         <main className="flex-grow isolate">
           {/* Lazy load components with suspense */}
           <div className="relative">
+            <Navbar />
             <Suspense fallback={<div className="min-h-screen" />}>
               <Hero />
             </Suspense>
@@ -38,9 +39,7 @@ export default function LandingPage() {
               <FAQ />
             </Suspense>
 
-            <Suspense fallback={<div className="min-h-[600px]" />}>
-              <PrivacyPolicy />
-            </Suspense>
+            
           </div>
         </main>
         <Footer />

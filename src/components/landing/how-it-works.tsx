@@ -1,6 +1,6 @@
 'use client';
 
-import { useTheme } from 'next-themes';
+import { useTheme } from './theme-context';
 import { Upload, MessageSquare, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,7 +23,8 @@ const steps = [
 ];
 
 export default function HowItWorks() {
-  const { theme } = useTheme();
+
+  const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
   return (
@@ -47,8 +48,8 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-2xl text-center">
           <div className={`inline-flex items-center space-x-2 rounded-full px-4 py-1.5 
             transition-all duration-300 ring-1 
-            ${isDark 
-              ? 'bg-zinc-800/50 text-zinc-300 ring-zinc-700/50' 
+            ${isDark
+              ? 'bg-zinc-800/50 text-zinc-300 ring-zinc-700/50'
               : 'bg-zinc-100 text-zinc-800 ring-zinc-200/50'}`}
           >
             <span className="relative flex h-2 w-2">
@@ -83,14 +84,14 @@ export default function HowItWorks() {
               <div
                 key={index}
                 className={`group relative overflow-hidden rounded-2xl p-8 transition-all duration-300
-                  ${isDark 
-                    ? 'bg-zinc-900/50 hover:bg-zinc-800/50' 
+                  ${isDark
+                    ? 'bg-zinc-900/50 hover:bg-zinc-800/50'
                     : 'bg-white hover:bg-zinc-50'} 
                   ring-1 ${isDark ? 'ring-zinc-800' : 'ring-zinc-200'}`}
               >
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg 
-                  ${isDark 
-                    ? 'bg-zinc-800 text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white' 
+                  ${isDark
+                    ? 'bg-zinc-800 text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white'
                     : 'bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200 group-hover:text-zinc-900'}`}>
                   <step.icon className="h-5 w-5" />
                 </div>
@@ -118,8 +119,8 @@ export default function HowItWorks() {
             href="/dashboard"
             className={`group relative overflow-hidden rounded-xl px-8 py-3 text-sm font-medium
               shadow-sm transition-all duration-300 
-              ${isDark 
-                ? 'bg-white text-zinc-900 hover:bg-zinc-100 hover:shadow-lg hover:shadow-white/10' 
+              ${isDark
+                ? 'bg-white text-zinc-900 hover:bg-zinc-100 hover:shadow-lg hover:shadow-white/10'
                 : 'bg-zinc-900 text-white hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/10'
               } hover:-translate-y-1`}
           >

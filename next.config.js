@@ -1,12 +1,31 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      'www.anthropic.com',
-      'anthropic.com',
-      'www.openai.com',
-      'openai.com',
-      'upload.wikimedia.org'
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.anthropic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'anthropic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.openai.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'openai.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
+      },
     ],
   },
   webpack: (config, { isServer }) => {

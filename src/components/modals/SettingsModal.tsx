@@ -14,7 +14,7 @@ interface SettingsModalProps {
 
 type Tab = 'general' | 'models' | 'api-keys';
 type Theme = 'light' | 'dark' | 'system';
-type AIModel = 'openai' | 'gemini' | 'anthropic';
+type AIModel = 'openai' | 'gemini' | 'anthropic' | 'groq' | 'default-ai';
 
 interface ModelConfig {
   id: string;
@@ -38,6 +38,22 @@ const THEMES: { id: Theme; label: string; icon: React.ElementType }[] = [
 ];
 
 const models: ModelConfig[] = [
+  {
+    id: 'default-ai',
+    name: 'Default AI',
+    provider: 'default-ai',
+    description: 'Powerful default model powered by Llama 3',
+    requiresKey: false,
+    color: 'bg-gradient-to-br from-violet-500 to-fuchsia-500'
+  },
+  {
+    id: 'groq-llama',
+    name: 'Groq (Llama 3)',
+    provider: 'groq',
+    description: 'High-performance model with fast inference',
+    requiresKey: true,
+    color: 'bg-gradient-to-br from-rose-500 to-red-500'
+  },
   {
     id: 'openai-gpt4',
     name: 'GPT-4',
@@ -73,6 +89,20 @@ const models: ModelConfig[] = [
 ];
 
 const API_PROVIDERS = [
+  {
+    id: 'default-ai',
+    label: 'Default AI',
+    placeholder: 'No API key required',
+    icon: '/images/groq.svg',
+    description: 'Pre-configured AI model ready to use'
+  },
+  {
+    id: 'groq',
+    label: 'Groq API Key',
+    placeholder: 'Enter your Groq API key',
+    icon: '/images/groq.svg',
+    description: 'Required for using Groq models'
+  },
   { 
     id: 'openai',
     label: 'OpenAI API Key',
@@ -132,7 +162,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
 
     // Check if we have a valid API key for the selected model
-    if (!validApiKeys[selectedModel.provider]) {
+    if (!validApiKeys[selectedModel.provider] && selectedModel.requiresKey) {
       toast.error(`Please add an API key for ${selectedModel.name}`);
       return;
     }
