@@ -621,7 +621,7 @@ export default function HowItWorks() {
   };
 
   return (
-    <section id="how-it-works" className={`py-24 transition-colors duration-300
+    <section id="how-it-works" className={`py-24 transition-colors duration-300 scroll-mt-32
       ${isDark ? 'bg-black' : 'bg-white'}`}
     >
       <div className="container px-4 mx-auto">

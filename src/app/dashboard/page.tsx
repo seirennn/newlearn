@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronLeft, ChevronRight, FileText, MessageSquare, Plus, User2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import  DashboardContent  from '@/components/dashboard/DashboardContent';
+import DashboardContent from '@/components/dashboard/DashboardContent';
 import { SettingsModal } from '@/components/modals/SettingsModal';
+import { useTheme } from '@/components/landing/theme-context';
 
 interface StudySession {
   id: string;
@@ -24,6 +26,7 @@ export default function Page() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const { isDark } = useTheme();
 
   return (
     <>
@@ -40,12 +43,20 @@ export default function Page() {
           isCollapsed ? "justify-center" : "justify-between"
         )}>
           {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
-                <span className="text-black font-bold text-sm">Y</span>
+            <Link href="/" className="flex items-center group">
+              <div className="relative w-8 h-8 transition-transform duration-300 group-hover:scale-105">
+                <Image
+                  src={isDark ? '/whitelogo.svg' : '/whitelogo.svg'}
+                  alt="LearnFlow Logo"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
-              <span className="text-lg font-semibold tracking-tight">NewLearn</span>
-            </div>
+              <span className="text-lg font-medium tracking-tight text-zinc-100">
+                LearnFlow
+              </span>
+            </Link>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}

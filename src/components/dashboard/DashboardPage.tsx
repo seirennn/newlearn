@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, ZoomIn, ZoomOut } from 'lucide-react';
+import { Upload, ZoomIn, ZoomOut, Settings, User2 } from 'lucide-react';
 import { PDFViewer } from '@/components/content/PDFViewer';
 import { extractTextFromPDF } from '@/utils/pdf';
 import { ChatTool } from '@/components/tools/ChatTool';

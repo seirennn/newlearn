@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Document, Page } from 'react-pdf';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -28,21 +28,10 @@ export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [isExtracting, setIsExtracting] = useState(false);
 
-  useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPdfUrl(url);
-      extractTextFromPDF(file);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setPdfUrl(null);
-    }
-  }, [file]);
-
-  const extractTextFromPDF = async (file: File) => {
+  const extractTextFromPDF = useCallback(async (url: string) => {
     try {
       setIsExtracting(true);
-      const arrayBuffer = await file.arrayBuffer();
+      const arrayBuffer = await fetch(url).then((res) => res.arrayBuffer());
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
 
@@ -50,7 +39,7 @@ export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
-          .map((item: any) => item.str)
+          .map((item: any) => 'str' in item ? item.str : '')
           .join(' ');
         fullText += pageText + '\n\n';
       }
@@ -61,7 +50,23 @@ export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
     } finally {
       setIsExtracting(false);
     }
-  };
+  }, [onTextExtracted]);
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPdfUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPdfUrl(null);
+    }
+  }, [file]);
+
+  useEffect(() => {
+    if (pdfUrl) {
+      extractTextFromPDF(pdfUrl);
+    }
+  }, [pdfUrl, extractTextFromPDF]);
 
   useEffect(() => {
     const updateContainerWidth = () => {

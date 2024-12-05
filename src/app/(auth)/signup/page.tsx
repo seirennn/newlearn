@@ -3,84 +3,121 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Github } from 'lucide-react';
-import NoiseBackground from '@/components/ui/noise-background';
-import FluidBackground from '@/components/ui/fluid-background';
 
 export default function SignUp() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Add your signup logic here
-    setTimeout(() => setIsLoading(false), 1500); // Simulate loading
+    // Auth logic will be implemented later
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#131313] flex items-center justify-center overflow-hidden">
-      <NoiseBackground />
-      <FluidBackground />
-      
-      <div className="relative z-10 w-full max-w-md px-8">
-        <div className="backdrop-blur-xl bg-[#1a1a1a]/80 rounded-2xl border border-zinc-800 shadow-2xl p-8 space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold tracking-tighter text-zinc-100">Create account</h1>
-            <p className="text-zinc-400">Enter your information to get started</p>
-          </div>
+    <div className="relative w-full max-w-md  mx-auto z-10">
+      {/* Auth Card */}
+      <div className="backdrop-blur-2xl bg-black/40 border border-zinc-800/50 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/5 to-zinc-900/5 pointer-events-none" />
+        
+        {/* Card Header */}
+        <div className="relative flex flex-col items-center justify-center mb-8">
+          <h2 className="text-2xl font-bold text-white">
+            Create an account
+          </h2>
+          <p className="text-sm text-zinc-400">
+            Sign up to get started with LearnFlow
+          </p>
+        </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-zinc-300">
-                Email
+        <form onSubmit={handleSubmit} className="space-y-6 relative">
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-zinc-300">
+                Full name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-1 block w-full rounded-lg px-3 py-2.5 text-sm bg-black/50 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-700 border focus:outline-none focus:ring-2 focus:ring-zinc-700/10 transition-all hover:bg-black/70"
+              />
+            </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
+                Email address
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
-                placeholder="hello@example.com"
-                className="w-full px-3 py-2 bg-[#202020] border border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-zinc-100 placeholder:text-zinc-500"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full rounded-lg px-3 py-2.5 text-sm bg-black/50 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-700 border focus:outline-none focus:ring-2 focus:ring-zinc-700/10 transition-all hover:bg-black/70"
               />
             </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-zinc-300">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
                 Password
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
-                className="w-full px-3 py-2 bg-[#202020] border border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-zinc-100"
+                autoComplete="new-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full rounded-lg px-3 py-2.5 text-sm bg-black/50 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-700 border focus:outline-none focus:ring-2 focus:ring-zinc-700/10 transition-all hover:bg-black/70"
               />
             </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-zinc-100 hover:bg-zinc-200 text-[#131313] rounded-lg px-4 py-2 font-medium transition-all disabled:opacity-50"
-            >
-              {isLoading ? 'Creating account...' : 'Create account'}
-            </button>
-          </form>
-
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <div className="flex-1 h-px bg-zinc-800" />
-              <span className="px-4 text-sm text-zinc-500">or</span>
-              <div className="flex-1 h-px bg-zinc-800" />
-            </div>
-
-            <button className="w-full flex items-center justify-center space-x-2 bg-[#202020] hover:bg-[#252525] border border-zinc-800 rounded-lg px-4 py-2 transition-all text-zinc-100">
-              <Github className="h-5 w-5" />
-              <span>GitHub</span>
-            </button>
           </div>
 
-          <p className="text-sm text-zinc-400 text-center">
-            Already have an account?{' '}
-            <Link href="/signin" className="text-zinc-100 hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </div>
+          <div className="space-y-4 pt-2">
+            <button
+              type="submit"
+              className="relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-700 transition-all"
+            >
+              Create account
+            </button>
+
+            <button
+              type="button"
+              className="relative w-full flex justify-center py-2.5 px-4 text-sm font-medium rounded-lg bg-black/50 hover:bg-black/70 text-white border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-700 transition-all hover:border-zinc-700 group"
+            >
+              <Github className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+              Continue with GitHub
+            </button>
+          </div>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-400">
+          Already have an account?{' '}
+          <Link
+            href="/signin"
+            className="font-medium text-zinc-400 hover:text-zinc-300 transition-colors"
+          >
+            Sign in
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-zinc-500">
+          By signing up, you agree to our{' '}
+          <Link href="#" className="underline hover:text-zinc-400">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="#" className="underline hover:text-zinc-400">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );

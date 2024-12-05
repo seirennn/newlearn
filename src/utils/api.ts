@@ -19,6 +19,17 @@ interface AISettings {
   temperature: number;
 }
 
+interface APIError {
+  message: string;
+  status?: number;
+  code?: string;
+}
+
+interface APIResponse<T> {
+  data: T;
+  error?: APIError;
+}
+
 const SYSTEM_PROMPTS = {
   chat: `You are an intelligent AI tutor analyzing educational content. For YouTube videos:
 1. The content includes the video title, URL, and complete transcript
@@ -64,20 +75,22 @@ const RATE_LIMIT = {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Error handling utility
-const handleAPIError = (error: any, attempt: number) => {
-  const errorMessage = error?.error?.message || error?.message || 'Unknown error';
-  const isRateLimit = errorMessage.toLowerCase().includes('rate limit') || 
-                     error?.status === 429;
-  
-  if (isRateLimit && attempt < RATE_LIMIT.maxRetries) {
-    const waitTime = Math.min(
-      RATE_LIMIT.initialDelay * Math.pow(2, attempt),
-      RATE_LIMIT.maxDelay
-    );
-    return { shouldRetry: true, waitTime };
+const handleAPIError = (error: APIError): never => {
+  throw new Error(`API Error: ${error.message}`);
+};
+
+// Utility function to make API requests
+const makeAPIRequest = async <T>(
+  endpoint: string, 
+  options?: RequestInit
+): Promise<APIResponse<T>> => {
+  try {
+    const response = await fetch(endpoint, options);
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    return { error };
   }
-  
-  return { shouldRetry: false, error: new Error(errorMessage) };
 };
 
 export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISettings) {
@@ -140,7 +153,7 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
       
       switch (activeModel) {
         case 'openai': {
-          response = await fetch('https://api.openai.com/v1/chat/completions', {
+          response = await makeAPIRequest<APIResponse<any>>(`https://api.openai.com/v1/chat/completions`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -155,12 +168,11 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
             })
           });
 
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'OpenAI API error');
+          if (response.error) {
+            throw new Error(response.error.message);
           }
 
-          const data = await response.json();
+          const data = response.data;
           const content = data.choices[0].message.content;
 
           // For JSON responses, validate the format
@@ -177,7 +189,7 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
         }
 
         case 'gemini': {
-          response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+          response = await makeAPIRequest<APIResponse<any>>(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -197,12 +209,11 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
             })
           });
 
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'Gemini API error');
+          if (response.error) {
+            throw new Error(response.error.message);
           }
 
-          const data = await response.json();
+          const data = response.data;
           const content = data.candidates[0].content.parts[0].text;
 
           // For JSON responses, validate the format

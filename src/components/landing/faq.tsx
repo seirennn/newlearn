@@ -37,7 +37,7 @@ export default function FAQ() {
 
   return (
     <section id="faq" className={cn(
-      "relative py-24 sm:py-32 overflow-hidden",
+      "relative py-24 sm:py-32 overflow-hidden scroll-mt-32",
       isDark ? "bg-black" : "bg-white"
     )}>
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8">

@@ -33,43 +33,43 @@ const items = [
     title: "Smart PDF Analysis",
     description: "Extract insights and summaries from your documents instantly.",
     header: <ImageBox src="https://images.unsplash.com/photo-1593720219276-0b1eacd0aef4?w=800&auto=format&fit=crop&q=80" />,
-    icon: <FileText className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <FileText className="h-4 w-4 text-white dark:text-white" />,
   },
   {
     title: "Interactive Learning",
     description: "Engage with your content through AI-powered conversations.",
     header: <ImageBox src="https://images.unsplash.com/photo-1596496050827-8299e0220de1?w=800&auto=format&fit=crop&q=80" />,
-    icon: <MessageSquareText className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <MessageSquareText className="h-4 w-4 text-white dark:text-white" />,
   },
   {
     title: "Video Intelligence",
     description: "Transform video content into structured knowledge.",
     header: <ImageBox src="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&auto=format&fit=crop&q=80" />,
-    icon: <Youtube className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <Youtube className="h-4 w-4 text-white dark:text-white" />,
   },
   {
     title: "Advanced Content Processing",
     description: "Leverage AI to understand and analyze complex materials with unprecedented depth and accuracy.",
     header: <ImageBox src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&auto=format&fit=crop&q=80" />,
-    icon: <Brain className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <Brain className="h-4 w-4 text-white dark:text-white" />,
   },
   {
     title: "Quick Insights",
     description: "Get instant summaries and key takeaways.",
     header: <ImageBox src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80" />,
-    icon: <Lightbulb className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <Lightbulb className="h-4 w-4 text-white dark:text-white" />,
   },
   {
     title: "Collaborative Learning",
     description: "Share and learn together with integrated features.",
     header: <ImageBox src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop&q=80" />,
-    icon: <Share2 className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <Share2 className="h-4 w-4 text-white dark:text-white" />,
   },
   {
     title: "Personalized Experience",
     description: "Adaptive learning paths tailored to your unique style and pace of learning.",
     header: <ImageBox src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&auto=format&fit=crop&q=80" />,
-    icon: <Sparkles className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />,
+    icon: <Sparkles className="h-4 w-4 text-white dark:text-white" />,
   },
 ];
 
@@ -79,7 +79,7 @@ export default function Features() {
 
   return (
     <section id="features" className={cn(
-      "relative py-24 sm:py-32 overflow-hidden",
+      "relative py-24 sm:py-32 overflow-hidden scroll-mt-32",
       isDark ? "bg-black" : "bg-white"
     )}>
       <div className={cn(

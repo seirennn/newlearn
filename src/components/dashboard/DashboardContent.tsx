@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useContent } from '@/contexts/ContentContext';
 import { useTools } from '@/contexts/ToolsContext';
 import { PDFViewer } from '../content/PDFViewer';
-import { TextEditor } from '../content/TextEditor';
+import TextEditor from '@/components/content/TextEditor';
 import { YouTubeViewer } from '../content/YouTubeViewer';
 import { ResizeHandle } from './ResizeHandle';
 import { ChatTool } from '../tools/ChatTool';
