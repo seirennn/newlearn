@@ -6,7 +6,9 @@ interface AIRequestOptions {
   temperature?: number;
   format?: 'json' | 'text';
   systemPrompt?: string;
-  history?: any[];
+  history?: Array<{ role: string; content: string }>;
+  role?: string;
+  content?: string;
 }
 
 interface AISettings {
@@ -14,20 +16,21 @@ interface AISettings {
     anthropic?: string;
     openai?: string;
     gemini?: string;
+    groq?: string;
   };
   aiModel: AIModel;
   temperature: number;
+  contentType?: string;
 }
 
-interface APIError {
-  message: string;
+// Custom error type with optional status
+class APIError extends Error {
   status?: number;
-  code?: string;
-}
-
-interface APIResponse<T> {
-  data: T;
-  error?: APIError;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+    this.name = 'APIError';
+  }
 }
 
 const SYSTEM_PROMPTS = {
@@ -75,31 +78,35 @@ const RATE_LIMIT = {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Error handling utility
-const handleAPIError = (error: APIError): never => {
-  throw new Error(`API Error: ${error.message}`);
-};
-
-// Utility function to make API requests
-const makeAPIRequest = async <T>(
-  endpoint: string, 
-  options?: RequestInit
-): Promise<APIResponse<T>> => {
-  try {
-    const response = await fetch(endpoint, options);
-    const data = await response.json();
-    return { data };
-  } catch (error) {
-    return { error };
+async function handleAPIError(error: APIError, attempt: number): Promise<boolean> {
+  const errorMessage = error.message;
+  const isRateLimit = errorMessage.toLowerCase().includes('rate limit') || 
+                     error.status === 429;
+  
+  if (isRateLimit && attempt < RATE_LIMIT.maxRetries) {
+    const waitTime = Math.min(
+      RATE_LIMIT.initialDelay * Math.pow(2, attempt),
+      RATE_LIMIT.maxDelay
+    );
+    
+    // Use the delay function here
+    await delay(waitTime);
+    return true; // Indicate that a retry is possible
   }
+  
+  return false; // No retry possible
 };
 
-export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISettings) {
+export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISettings): Promise<string> {
   const activeModel = settings.aiModel;
   const apiKeys = settings.apiKeys || {};
-  const apiKey = apiKeys[activeModel];
+  
+  // Handle 'default-ai' case by falling back to 'openai'
+  const resolvedModel = activeModel === 'default-ai' ? 'openai' : activeModel;
+  const apiKey = apiKeys[resolvedModel];
 
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error(`Please add your ${activeModel.toUpperCase()} API key in settings to use this feature.`);
+    throw new Error(`Please add your ${resolvedModel.toUpperCase()} API key in settings to use this feature.`);
   }
 
   // Prepare messages array
@@ -149,11 +156,11 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
   
   while (attempt < maxRetries) {
     try {
-      let response;
+      let response: Response;
       
-      switch (activeModel) {
+      switch (resolvedModel) {
         case 'openai': {
-          response = await makeAPIRequest<APIResponse<any>>(`https://api.openai.com/v1/chat/completions`, {
+          response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -168,11 +175,12 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
             })
           });
 
-          if (response.error) {
-            throw new Error(response.error.message);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new APIError(errorData.error?.message || 'OpenAI API error', response.status);
           }
 
-          const data = response.data;
+          const data = await response.json();
           const content = data.choices[0].message.content;
 
           // For JSON responses, validate the format
@@ -180,7 +188,7 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
             try {
               JSON.parse(content); // Validate JSON format
               return content;
-            } catch (e) {
+            } catch {
               throw new Error('Invalid JSON response from API');
             }
           }
@@ -189,7 +197,7 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
         }
 
         case 'gemini': {
-          response = await makeAPIRequest<APIResponse<any>>(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`, {
+          response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -209,11 +217,12 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
             })
           });
 
-          if (response.error) {
-            throw new Error(response.error.message);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new APIError(errorData.error?.message || 'Gemini API error', response.status);
           }
 
-          const data = response.data;
+          const data = await response.json();
           const content = data.candidates[0].content.parts[0].text;
 
           // For JSON responses, validate the format
@@ -221,7 +230,44 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
             try {
               JSON.parse(content); // Validate JSON format
               return content;
-            } catch (e) {
+            } catch {
+              throw new Error('Invalid JSON response from API');
+            }
+          }
+
+          return content;
+        }
+
+        case 'groq': {
+          response = await fetch('https://api.groq.com/v1/queries', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey.trim()}`
+            },
+            body: JSON.stringify({
+              query: messages.map(m => m.content).join('\n\n'),
+              parameters: {
+                temperature: options.temperature || 0.3,
+                max_tokens: 2000
+              }
+            })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new APIError(errorData.error?.message || 'Groq API error', response.status);
+          }
+
+          const data = await response.json();
+          const content = data.result;
+
+          // For JSON responses, validate the format
+          if (options.format === 'json') {
+            try {
+              JSON.parse(content); // Validate JSON format
+              return content;
+            } catch {
               throw new Error('Invalid JSON response from API');
             }
           }
@@ -230,14 +276,12 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
         }
 
         default:
-          throw new Error(`Unsupported AI model: ${activeModel}`);
+          throw new Error(`Unsupported AI model: ${resolvedModel}`);
       }
     } catch (error) {
       console.error(`API request failed (attempt ${attempt + 1}/${maxRetries}):`, error);
       
-      if (attempt < maxRetries - 1) {
-        const waitTime = Math.pow(2, attempt) * 1000;
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+      if (error instanceof APIError && await handleAPIError(error, attempt)) {
         attempt++;
         continue;
       }
@@ -251,32 +295,40 @@ export async function makeAIAPIRequest(options: AIRequestOptions, settings: AISe
 
 export async function makeAIRequest(
   type: 'quiz' | 'flashcards' | 'summary' | 'chat',
-  data: any,
+  data: { 
+    content: string; 
+    format?: 'json' | 'text'; 
+    systemPrompt?: string; 
+    temperature?: number; 
+    [key: string]: unknown 
+  },
   settings: AISettings
-) {
+): Promise<string> {
   // Add JSON format requirement to system prompt
   if (data.format === 'json') {
     data.systemPrompt = `${data.systemPrompt}\n\nIMPORTANT: You MUST respond with ONLY a valid JSON object. Do not include any other text, markdown, or explanations in your response. The response must be parseable by JSON.parse().`;
     data.temperature = 0.3; // Lower temperature for more consistent JSON
   }
 
-  const response = await makeAIAPIRequest(data, settings);
+  const requestData = {
+    ...data,
+    prompt: data.content,  
+  };
 
-  // For JSON responses, try to ensure valid JSON
+  const response = await makeAIAPIRequest(requestData, settings);
+
   if (data.format === 'json') {
     try {
-      // Try to parse the response
       JSON.parse(response);
       return response;
-    } catch (e) {
-      // If parsing fails, try to extract JSON
+    } catch {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           JSON.parse(jsonMatch[0]);
           return jsonMatch[0];
-        } catch (e2) {
-          throw new Error('Failed to parse JSON response');
+        } catch {
+          throw new Error('Failed to parse extracted JSON');
         }
       }
       throw new Error('No valid JSON found in response');
@@ -286,7 +338,13 @@ export async function makeAIRequest(
   return response;
 }
 
-export async function generateSummary(content: string, settings: AISettings & { systemPrompt?: string, contentType?: string }) {
+export async function generateSummary(
+  content: string, 
+  settings: AISettings & { 
+    systemPrompt?: string; 
+    contentType?: string 
+  }
+): Promise<string> {
   try {
     console.log('Generating summary with settings:', {
       contentType: settings.contentType,
@@ -295,6 +353,7 @@ export async function generateSummary(content: string, settings: AISettings & { 
     });
 
     const response = await makeAIRequest('summary', {
+      content: content,  
       prompt: 'Generate a comprehensive summary of this content.',
       context: content,
       systemPrompt: settings.systemPrompt,
@@ -308,7 +367,21 @@ export async function generateSummary(content: string, settings: AISettings & { 
   }
 }
 
-export async function generateQuiz(content: string, settings: AISettings, quizSettings: { difficulty: string; numQuestions: number }) {
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
+
+export async function generateQuiz(
+  content: string, 
+  settings: AISettings, 
+  quizSettings: { 
+    difficulty: string; 
+    numQuestions: number 
+  }
+): Promise<QuizQuestion[]> {
   const systemPrompt = `You are creating a quiz based on the provided content. Generate a JSON response in this EXACT format:
 
 {
@@ -336,25 +409,40 @@ REQUIREMENTS:
     // First attempt with standard settings
     try {
       const response = await makeAIRequest('quiz', {
+        content: content,
         prompt: `Generate a ${quizSettings.difficulty} quiz with ${quizSettings.numQuestions} questions. Return ONLY a JSON object.`,
-        context: content,
         systemPrompt,
         format: 'json',
         temperature: 0.3
       }, settings);
 
-      const parsed = JSON.parse(response);
+      let parsed;
+      try {
+        parsed = JSON.parse(response);
+      } catch {
+        // Try to extract JSON if parsing fails
+        const match = response.match(/\{[\s\S]*\}/);
+        if (!match) {
+          throw new Error('No valid JSON found in response');
+        }
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          throw new Error('Failed to parse extracted JSON');
+        }
+      }
+
       if (parsed.questions && Array.isArray(parsed.questions)) {
         return parsed.questions;
       }
-    } catch (e) {
+    } catch {
       console.log('First attempt failed, trying with modified prompt...');
     }
 
     // Second attempt with more explicit prompt
     const response = await makeAIRequest('quiz', {
+      content: content,
       prompt: `Create a quiz with ${quizSettings.numQuestions} ${quizSettings.difficulty} questions and format the response as a JSON object with a "questions" array. Each question should have "question", "options" (array of 4 strings), "correctAnswer" (0-3), and "explanation" properties. Do not include any text outside the JSON.`,
-      context: content,
       systemPrompt,
       format: 'json',
       temperature: 0.2
@@ -364,13 +452,17 @@ REQUIREMENTS:
     let parsed;
     try {
       parsed = JSON.parse(response);
-    } catch (e) {
+    } catch {
       // Try to extract JSON if parsing fails
       const match = response.match(/\{[\s\S]*\}/);
       if (!match) {
-        throw new Error('Could not find valid JSON in response');
+        throw new Error('No valid JSON found in response');
       }
-      parsed = JSON.parse(match[0]);
+      try {
+        parsed = JSON.parse(match[0]);
+      } catch {
+        throw new Error('Failed to parse extracted JSON');
+      }
     }
 
     if (!parsed.questions || !Array.isArray(parsed.questions)) {
@@ -379,7 +471,7 @@ REQUIREMENTS:
 
     // Validate and clean the questions
     const validatedQuestions = parsed.questions
-      .filter(q => (
+      .filter((q: QuizQuestion) => (
         q && 
         typeof q === 'object' && 
         q.question && 
@@ -390,9 +482,9 @@ REQUIREMENTS:
         q.correctAnswer <= 3 &&
         q.explanation
       ))
-      .map(q => ({
+      .map((q: QuizQuestion) => ({
         question: String(q.question).trim(),
-        options: q.options.map(opt => String(opt).trim()),
+        options: q.options.map((opt: string) => String(opt).trim()),
         correctAnswer: Number(q.correctAnswer),
         explanation: String(q.explanation).trim()
       }));
@@ -408,7 +500,10 @@ REQUIREMENTS:
   }
 }
 
-export async function generateFlashcards(content: string, settings: AISettings) {
+export async function generateFlashcards(
+  content: string, 
+  settings: AISettings
+): Promise<Array<{ front: string; back: string }>> {
   const systemPrompt = `You are creating flashcards based on the provided content. Generate a JSON response in this EXACT format:
 
 {
@@ -434,6 +529,7 @@ REQUIREMENTS:
     // First attempt with standard settings
     try {
       const response = await makeAIRequest('flashcards', {
+        content: content,
         prompt: 'Create flashcards from this content. Return ONLY a JSON object.',
         context: content,
         systemPrompt,
@@ -441,16 +537,32 @@ REQUIREMENTS:
         temperature: 0.3
       }, settings);
 
-      const parsed = JSON.parse(response);
+      let parsed;
+      try {
+        parsed = JSON.parse(response);
+      } catch {
+        // Try to extract JSON if parsing fails
+        const match = response.match(/\{[\s\S]*\}/);
+        if (!match) {
+          throw new Error('No valid JSON found in response');
+        }
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          throw new Error('Failed to parse extracted JSON');
+        }
+      }
+
       if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
         return parsed.flashcards;
       }
-    } catch (e) {
+    } catch {
       console.log('First attempt failed, trying with modified prompt...');
     }
 
     // Second attempt with more explicit prompt
     const response = await makeAIRequest('flashcards', {
+      content: content,
       prompt: 'Create flashcards and format the response as a JSON object with a "flashcards" array containing objects with "front" and "back" properties. Do not include any text outside the JSON.',
       context: content,
       systemPrompt,
@@ -462,23 +574,33 @@ REQUIREMENTS:
     let parsed;
     try {
       parsed = JSON.parse(response);
-    } catch (e) {
+    } catch {
       // Try to extract JSON if parsing fails
       const match = response.match(/\{[\s\S]*\}/);
       if (!match) {
-        throw new Error('Could not find valid JSON in response');
+        throw new Error('No valid JSON found in response');
       }
-      parsed = JSON.parse(match[0]);
+      try {
+        parsed = JSON.parse(match[0]);
+      } catch {
+        throw new Error('Failed to parse extracted JSON');
+      }
     }
 
     if (!parsed.flashcards || !Array.isArray(parsed.flashcards)) {
       throw new Error('Invalid response format: missing flashcards array');
     }
 
+    // Define a type for raw flashcard input
+    type RawFlashcard = {
+      front?: unknown;
+      back?: unknown;
+    };
+
     // Validate and clean the flashcards
     const validatedCards = parsed.flashcards
-      .filter(card => card && typeof card === 'object' && card.front && card.back)
-      .map(card => ({
+      .filter((card: RawFlashcard) => card && typeof card === 'object' && card.front && card.back)
+      .map((card: RawFlashcard) => ({
         front: String(card.front).trim(),
         back: String(card.back).trim()
       }));
@@ -494,14 +616,25 @@ REQUIREMENTS:
   }
 }
 
-export async function chatWithAI(messages: any[], settings: AISettings, content: string) {
+export async function chatWithAI(
+  messages: Array<{ role: string; content: string }>, 
+  settings: AISettings, 
+  content: string
+): Promise<string> {
+  if (messages.length === 0) {
+    throw new Error('Messages array cannot be empty');
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  
   try {
-    const lastMessage = messages[messages.length - 1];
-    const response = await makeAIAPIRequest({
+    const response = await makeAIRequest('chat', {
+      content: lastMessage.content,
       prompt: lastMessage.content,
       context: content,
+      history: messages.slice(0, -1),
       systemPrompt: SYSTEM_PROMPTS.chat,
-      history: messages.slice(0, -1)
+      format: 'text'
     }, settings);
 
     return response;

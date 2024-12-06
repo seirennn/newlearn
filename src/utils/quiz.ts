@@ -19,10 +19,15 @@ interface QuizGenerationOptions {
 }
 
 export async function generateQuizQuestions(
-  _content: string,
-  _options: QuizGenerationOptions
+  options: QuizGenerationOptions
 ): Promise<QuizQuestion[]> {
-  // TODO: Replace with actual API calls to respective models
+  // Use the options parameter to guide quiz generation
+  const { temperature, numQuestions, difficulty, categories } = options;
+
+  // Use temperature to add some variability to quiz generation
+  const randomFactor = Math.random() * temperature;
+
+  // TODO: Implement model-specific quiz generation logic
   const mockQuestions: QuizQuestion[] = [
     {
       id: '1',
@@ -32,11 +37,11 @@ export async function generateQuizQuestions(
         'Data Analysis',
         'Web Development',
         'Cloud Computing'
-      ],
+      ].sort(() => randomFactor - 0.5), // Randomize order
       correctAnswer: 0,
       explanation: 'The content primarily focuses on machine learning concepts.',
-      difficulty: 'easy',
-      category: 'concept'
+      difficulty: difficulty,
+      category: categories[0] || 'concept'
     },
     {
       id: '2',
@@ -46,31 +51,14 @@ export async function generateQuizQuestions(
         'Create a social media app',
         'Design a database',
         'Develop a website'
-      ],
+      ].sort(() => randomFactor - 0.5), // Randomize order
       correctAnswer: 0,
       explanation: 'The concepts are best applied in building recommendation systems.',
-      difficulty: 'medium',
-      category: 'application'
-    },
-    {
-      id: '3',
-      question: 'What potential challenges might arise when implementing these concepts?',
-      options: [
-        'Data quality issues',
-        'Network connectivity',
-        'User interface design',
-        'Server maintenance'
-      ],
-      correctAnswer: 0,
-      explanation: 'Data quality is a critical challenge in machine learning implementations.',
-      difficulty: 'hard',
-      category: 'analysis'
+      difficulty: difficulty,
+      category: categories[1] || 'application'
     }
   ];
 
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(mockQuestions);
-    }, 2000);
-  });
+  // Limit the number of questions based on numQuestions
+  return mockQuestions.slice(0, numQuestions);
 }

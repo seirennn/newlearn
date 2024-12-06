@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Brain, Book, Settings, FlaskConical, ArrowRight, Sun, Moon } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useTheme } from './theme-context';
 import { useId } from 'react';
 
 export default function Hero() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const isDark = theme === 'dark';
   const patternId = useId();
   const lineGradientId = useId();
@@ -15,6 +15,7 @@ export default function Hero() {
   
   return (
     <div className={`relative min-h-screen ${isDark ? 'bg-black' : 'bg-white'} transition-colors duration-500 overflow-hidden`}>
+     
       {/* Decorative line pattern */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <svg 

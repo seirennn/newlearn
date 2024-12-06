@@ -2,7 +2,7 @@
 
 import 'regenerator-runtime/runtime';
 import { useState, useRef, useEffect } from 'react';
-import { Brain, FileText, MessageSquare, Upload, Youtube } from 'lucide-react';
+import { Brain, FileText, MessageSquare, Upload} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContent } from '@/contexts/ContentContext';
 import { useTools } from '@/contexts/ToolsContext';
@@ -95,16 +95,10 @@ const DashboardContent = () => {
     if (activeTab === 'youtube') {
       // For YouTube, only set content type without resetting content
       setContentType(activeTab);
-    } else {
+    } else if (['text', 'pdf'].includes(activeTab)) {
       // For other tabs, preserve YouTube URL while changing content
-      const prevContent = contextContent;
       setContextContent(tabContent[activeTab]);
       setContentType(activeTab);
-      
-      // Restore YouTube content when switching back
-      if (activeTab === 'youtube') {
-        setContextContent(prevContent);
-      }
     }
   }, [activeTab, tabContent, setContextContent, setContentType, contextContent]);
 
@@ -136,39 +130,42 @@ const DashboardContent = () => {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      try {
-        if (file.size > 0) {
-          setPdfFile(file);
-          setActiveTab('pdf');
-          
-          // Extract text from PDF
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-          let fullText = '';
-
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items
-              .map((item: any) => item.str)
-              .join(' ');
-            fullText += pageText + '\n\n';
-          }
-
-          // Set the extracted text in both context and tab content
-          setContextContent(fullText.trim());
-          handleContentChange(fullText.trim(), 'pdf');
-          setContentType('pdf');
-        } else {
-          throw new Error('PDF file is empty');
-        }
-      } catch (error) {
-        console.error('Error reading PDF file:', error);
-        alert('Error reading PDF file. Please try another file.');
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
+    
+    if (!file) return;
+    
+    try {
+      if (file.type !== 'application/pdf') {
+        throw new Error('Please select a valid PDF file');
       }
-    } else {
-      alert('Please select a valid PDF file');
+      
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error('PDF file is too large (max 100MB)');
+      }
+      
+      if (file.size === 0) {
+        throw new Error('PDF file is empty');
+      }
+
+      setPdfFile(file);
+      setActiveTab('pdf');
+      setContentType('pdf');
+      
+      // Clear the file input to allow re-uploading the same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+    } catch (error: unknown) {
+      console.error('Error handling PDF file:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      alert(errorMessage);
+      
+      // Reset state on error
+      setPdfFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 

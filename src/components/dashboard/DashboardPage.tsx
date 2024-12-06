@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, ZoomIn, ZoomOut, Settings, User2 } from 'lucide-react';
+import { Upload, ZoomIn, ZoomOut, Settings, User2, X } from 'lucide-react';
 import { PDFViewer } from '@/components/content/PDFViewer';
 import { extractTextFromPDF } from '@/utils/pdf';
 import { ChatTool } from '@/components/tools/ChatTool';
@@ -16,7 +16,10 @@ export function DashboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState<string>('chat');
+  const [showSettings, setShowSettings] = useState(false);
+  const [fontSize, setFontSize] = useState('medium');
+  const [theme, setTheme] = useState('dark');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,7 +134,14 @@ export function DashboardPage() {
         {/* Content Display */}
         <div className="flex-1 min-h-0 overflow-auto">
           {contentType === 'pdf' && selectedFile ? (
-            <PDFViewer file={selectedFile} zoom={zoom} />
+            <PDFViewer 
+              file={selectedFile} 
+              zoom={zoom} 
+              onTextExtracted={(extractedText) => {
+                
+                console.log('Extracted PDF Text:', extractedText);
+              }} 
+            />
           ) : (
             <div className="h-full p-4">
               <textarea
@@ -175,6 +185,61 @@ export function DashboardPage() {
           {activeTab === 'summary' && <SummaryTool />}
         </div>
       </div>
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 rounded-lg w-[400px] shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+              <h2 className="text-lg font-semibold">Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 hover:bg-neutral-800 rounded-md transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-400">Font Size</label>
+                <select
+                  value={fontSize}
+                  onChange={(e) => setFontSize(e.target.value)}
+                  className="w-full bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-600"
+                >
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-400">Theme</label>
+                <select
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="w-full bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-600"
+                >
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                  <option value="system">System</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-neutral-800">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-4 py-2 text-sm font-medium text-neutral-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-4 py-2 text-sm font-medium bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-[72px] h-full bg-[#080808] border-r border-neutral-800 flex flex-col items-center">
         <div className="h-[72px] w-full flex items-center justify-center border-b border-neutral-800">
           <button

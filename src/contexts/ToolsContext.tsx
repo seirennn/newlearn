@@ -7,10 +7,23 @@ interface Message {
   content: string;
 }
 
+interface Flashcard {
+  id?: string;
+  question: string;
+  answer: string;
+}
+
+interface QuizQuestion {
+  id?: string;
+  question: string;
+  options: string[];
+  correctAnswer: string;
+}
+
 interface ToolState {
   chat: Message[];
-  flashcards: any[];
-  quiz: any[];
+  flashcards: Flashcard[];
+  quiz: QuizQuestion[];
   summary: string;
 }
 
@@ -18,7 +31,7 @@ interface ToolsContextType {
   activeTool: 'chat' | 'flashcards' | 'quiz' | 'summary';
   setActiveTool: (tool: 'chat' | 'flashcards' | 'quiz' | 'summary') => void;
   toolStates: ToolState;
-  updateToolState: (toolId: keyof ToolState, state: any) => void;
+  updateToolState: <T extends keyof ToolState>(toolId: T, state: ToolState[T]) => void;
   clearToolState: (toolId: keyof ToolState) => void;
   resetAllTools: () => void;
 }
@@ -36,7 +49,7 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
   const [activeTool, setActiveTool] = useState<'chat' | 'flashcards' | 'quiz' | 'summary'>('chat');
   const [toolStates, setToolStates] = useState<ToolState>(defaultToolState);
 
-  const updateToolState = useCallback((toolId: keyof ToolState, state: any) => {
+  const updateToolState = useCallback(<T extends keyof ToolState>(toolId: T, state: ToolState[T]) => {
     setToolStates(prev => {
       if (JSON.stringify(prev[toolId]) === JSON.stringify(state)) {
         return prev;

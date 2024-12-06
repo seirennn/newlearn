@@ -1,5 +1,3 @@
-import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
-
 export interface CustomVoice {
   id: string;
   name: string;
@@ -74,7 +72,7 @@ export const speakText = async (
 
   return new Promise((resolve, reject) => {
     utterance.onend = () => resolve();
-    utterance.onerror = (event) => reject(new Error('Speech synthesis failed'));
+    utterance.onerror = () => reject(new Error('Speech synthesis failed'));
     speechSynthesis.speak(utterance);
   });
 };
@@ -88,13 +86,4 @@ export const stopSpeaking = () => {
 // Initialize voices when the module loads
 if (typeof window !== 'undefined') {
   loadVoices().catch(console.error);
-}
-
-// Clean text by removing markdown symbols and normalizing whitespace
-function cleanText(text: string): string {
-  return text
-    .replace(/[#*`]/g, '') // Remove markdown symbols
-    .replace(/\n\n+/g, '\n') // Replace multiple newlines with single
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
 }

@@ -50,7 +50,10 @@ export function QuizTool() {
     setShowResults(false);
 
     try {
-      const response = await generateQuiz(content, settings, quizSettings);
+      const response = await generateQuiz(content, {
+        ...settings,
+        temperature: settings.temperature ?? 0.7
+      }, quizSettings);
       let newQuestions;
 
       try {
@@ -84,7 +87,7 @@ export function QuizTool() {
           throw new Error(`Invalid options format at index ${index}`);
         }
 
-        const options = q.options.map(opt => opt?.toString().trim()).filter(Boolean);
+        const options = q.options.map((opt: string) => opt?.toString().trim()).filter(Boolean);
         if (options.length !== 4) {
           throw new Error(`Missing option content at index ${index}`);
         }
@@ -201,7 +204,12 @@ export function QuizTool() {
                 <label className="block text-sm font-medium text-neutral-200">Difficulty</label>
                 <select
                   value={quizSettings.difficulty}
-                  onChange={(e) => setQuizSettings({ ...quizSettings, difficulty: e.target.value as any })}
+                  onChange={(e) => {
+                    const difficulty = e.target.value;
+                    if (difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard') {
+                      setQuizSettings({ ...quizSettings, difficulty });
+                    }
+                  }}
                   className="w-full px-4 py-2 bg-neutral-900 rounded-lg border border-neutral-800 text-white focus:ring-2 focus:ring-neutral-700 focus:border-transparent transition-colors"
                 >
                   <option value="easy">Easy</option>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, Settings2, Square } from 'lucide-react';
 import { VoiceSelector } from './VoiceSelector';
-import { Button } from './Button';
+import { Button } from './button';
 import { loadVoices, speakText, stopSpeaking, CustomVoice } from '@/utils/voiceService';
 
 interface SpeakButtonProps {
@@ -33,7 +33,7 @@ export function SpeakButton({ text, className = '' }: SpeakButtonProps) {
     };
 
     initVoices();
-  }, []);
+  }, [selectedVoice]);
 
   const handleSpeak = async () => {
     if (!selectedVoice || !text) return;

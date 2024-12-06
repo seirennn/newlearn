@@ -18,7 +18,6 @@ const RETRY_DELAY = 1000; // 1 second
 export function YouTubeViewer({ className }: YouTubeViewerProps) {
   const { 
     setContent, 
-    setContentType,
     contentType, 
     youtubeUrl, 
     setYoutubeUrl,
@@ -26,37 +25,13 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
   } = useContent();
   
   const [url, setUrl] = useState(youtubeUrl || '');
-  const [isValid, setIsValid] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
-  const [isLoadingTitle, setIsLoadingTitle] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastLoadedVideoId, setLastLoadedVideoId] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const playerRef = useRef<HTMLIFrameElement>(null);
 
-  // Refetch when switching back to YouTube tab
-  useEffect(() => {
-    if (contentType === 'youtube' && youtubeUrl) {
-      const videoId = validateAndExtractVideoId(youtubeUrl);
-      if (videoId) {
-        handleLoadVideo(videoId);
-      }
-    }
-  }, [contentType]);
-
-  useEffect(() => {
-    if (youtubeUrl && youtubeUrl !== url) {
-      setUrl(youtubeUrl);
-      const videoId = validateAndExtractVideoId(youtubeUrl);
-      if (videoId) {
-        setIsValid(true);
-        handleLoadVideo(videoId);
-      }
-    }
-  }, [youtubeUrl]);
-
-  const validateAndExtractVideoId = (input: string) => {
+  const validateAndExtractVideoId = useCallback((input: string): string | null => {
     const patterns = [
       /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/,
       /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^?]+)/,
@@ -68,74 +43,9 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
       if (match) return match[1];
     }
     return null;
-  };
+  }, []);
 
-  // Debounced URL validation
-  const debouncedValidation = useCallback(
-    debounce((input: string) => {
-      const videoId = validateAndExtractVideoId(input);
-      setIsValid(!!videoId);
-      if (videoId) {
-        handleLoadVideo(videoId);
-      }
-    }, 500),
-    []
-  );
-
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    setUrl(newUrl);
-    setError(null);
-    debouncedValidation(newUrl);
-  };
-
-  const fetchTranscript = async (videoId: string): Promise<string> => {
-    // Check cache first
-    const cached = transcriptCache.get(videoId);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.transcript;
-    }
-
-    const fetchWithRetry = async (attempt: number): Promise<string> => {
-      try {
-        const response = await fetch('/api/youtube/transcript', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ videoId }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to fetch transcript');
-        }
-
-        const data = await response.json();
-        if (!data.transcript) {
-          throw new Error('No transcript available for this video');
-        }
-
-        // Cache the successful result
-        transcriptCache.set(videoId, {
-          transcript: data.transcript,
-          timestamp: Date.now(),
-        });
-
-        return data.transcript;
-      } catch (error: any) {
-        if (attempt < MAX_RETRIES) {
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-          return fetchWithRetry(attempt + 1);
-        }
-        throw error;
-      }
-    };
-
-    return fetchWithRetry(1);
-  };
-
-  const handleLoadVideo = async (videoId: string) => {
+  const handleLoadVideo = useCallback(async (videoId: string) => {
     // Allow reloading when switching back to YouTube tab
     if (videoId === lastLoadedVideoId && !error && contentType === 'youtube') {
       return;
@@ -143,10 +53,8 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
 
     setIsLoading(true);
     setIsLoadingTranscript(true);
-    setIsLoadingTitle(true);
     setIsTranscriptLoading(true);
     setError(null);
-    setRetryCount(0);
     
     try {
       // Set YouTube URL first to preserve it
@@ -166,7 +74,7 @@ export function YouTubeViewer({ className }: YouTubeViewerProps) {
               { signal: controller.signal }
             );
             if (!response.ok) throw new Error('Failed to fetch video title');
-            const data = await response.json();
+            const data = await response.json() as { title: string };
             return data;
           } catch (error) {
             console.warn('Error fetching title:', error);
@@ -190,29 +98,123 @@ ${transcript.trim()}`;
 
       setLastLoadedVideoId(videoId);
       setContent(formattedContent);
-      setIsValid(true);
       setError(null);  // Clear any previous errors
-    } catch (err: any) {
-      console.error('Error loading video:', err);
-      setError(err.message || 'Failed to load video');
-      setIsValid(false);
+    } catch (error) {
+      console.error('Error loading video:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load video');
       // Don't clear content or URL on error to preserve state
     } finally {
       setIsLoading(false);
       setIsLoadingTranscript(false);
-      setIsLoadingTitle(false);
       setIsTranscriptLoading(false);
+    }
+  }, [contentType, error, lastLoadedVideoId, setContent, setIsTranscriptLoading, setYoutubeUrl]);
+
+  // Add an input state for YouTube URL
+  const [youtubeInput, setYoutubeInput] = useState(url);
+
+  // Debounced URL validation
+  const validateAndLoad = useCallback((input: string) => {
+    const videoId = validateAndExtractVideoId(input);
+    if (videoId) {
+      void handleLoadVideo(videoId);
+    }
+  }, [handleLoadVideo, validateAndExtractVideoId]);
+
+  const debouncedValidation = debounce(validateAndLoad, 500);
+
+  // Cleanup debounced function
+  useEffect(() => {
+    return () => {
+      debouncedValidation.cancel();
+    };
+  }, [debouncedValidation]);
+
+  // Handler for YouTube URL input
+  const handleYoutubeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    setYoutubeInput(input);
+    setUrl(input);
+    debouncedValidation(input);
+  };
+
+  // Handle paste event to load video immediately
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const input = e.clipboardData.getData('text');
+    setYoutubeInput(input);
+    setUrl(input);
+    const videoId = validateAndExtractVideoId(input);
+    if (videoId) {
+      void handleLoadVideo(videoId);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const videoId = validateAndExtractVideoId(url);
-    if (!videoId) {
-      setError('Please enter a valid YouTube URL or video ID');
-      return;
+  // Refetch when switching back to YouTube tab
+  useEffect(() => {
+    if (contentType === 'youtube' && youtubeUrl) {
+      setYoutubeInput(youtubeUrl);
+      const videoId = validateAndExtractVideoId(youtubeUrl);
+      if (videoId) {
+        void handleLoadVideo(videoId);
+      }
     }
-    await handleLoadVideo(videoId);
+  }, [contentType, youtubeUrl, handleLoadVideo, validateAndExtractVideoId]);
+
+  useEffect(() => {
+    if (youtubeUrl && youtubeUrl !== url) {
+      setUrl(youtubeUrl);
+      setYoutubeInput(youtubeUrl);
+      const videoId = validateAndExtractVideoId(youtubeUrl);
+      if (videoId) {
+        void handleLoadVideo(videoId);
+      }
+    }
+  }, [youtubeUrl, url, handleLoadVideo, validateAndExtractVideoId]);
+
+  const fetchTranscript = async (videoId: string): Promise<string> => {
+    // Check cache first
+    const cached = transcriptCache.get(videoId);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.transcript;
+    }
+
+    const fetchWithRetry = async (attempt: number): Promise<string> => {
+      try {
+        const response = await fetch('/api/youtube/transcript', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ videoId }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json() as { error: string };
+          throw new Error(data.error || 'Failed to fetch transcript');
+        }
+
+        const data = await response.json() as { transcript: string };
+        if (!data.transcript) {
+          throw new Error('No transcript available for this video');
+        }
+
+        // Cache the successful result
+        transcriptCache.set(videoId, {
+          transcript: data.transcript,
+          timestamp: Date.now(),
+        });
+
+        return data.transcript;
+      } catch (error) {
+        if (attempt < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          return fetchWithRetry(attempt + 1);
+        }
+        throw error instanceof Error ? error : new Error('Unknown error occurred');
+      }
+    };
+
+    return fetchWithRetry(1);
   };
 
   const videoId = validateAndExtractVideoId(url);
@@ -220,24 +222,22 @@ ${transcript.trim()}`;
   return (
     <div className={`flex flex-col gap-4 p-4 h-full ${className}`}>
       <div className="flex flex-col gap-4 w-full h-full">
-        <div className="flex-none">
+        <div className="flex gap-2 items-center">
           <input
             type="text"
-            value={url}
-            onChange={handleUrlChange}
-            placeholder="Enter YouTube URL"
-            className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg 
-              focus:outline-none focus:ring-2 focus:ring-neutral-700
-              disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
+            value={youtubeInput}
+            onChange={handleYoutubeInputChange}
+            onPaste={handlePaste}
+            placeholder="Enter YouTube URL or Video ID"
+            className="flex-grow p-2 rounded bg-neutral-800 border-neutral-700 border text-neutral-200 placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600 focus:border-neutral-600"
           />
-
-          {error && (
-            <div className="text-red-500 text-sm mt-2">
-              {error}
-            </div>
-          )}
         </div>
+
+        {error && (
+          <div className="text-red-500 text-sm mt-2">
+            {error}
+          </div>
+        )}
 
         {videoId && (
           <div className="flex-1 min-h-[60vh]">

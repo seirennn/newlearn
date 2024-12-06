@@ -14,7 +14,7 @@ interface SettingsModalProps {
 
 type Tab = 'general' | 'models' | 'api-keys';
 type Theme = 'light' | 'dark' | 'system';
-type AIModel = 'openai' | 'gemini' | 'anthropic' | 'groq' | 'default-ai';
+type AIModel = 'openai' | 'anthropic' | 'gemini' | 'groq' | 'default-ai';
 
 interface ModelConfig {
   id: string;
@@ -150,8 +150,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleSaveSettings = useCallback(() => {
     // Filter out empty API keys
     const validApiKeys = Object.fromEntries(
-      Object.entries(localApiKeys)
-        .filter(([_, value]) => value && value.trim() !== '')
+      Object.entries(localApiKeys).filter(([, value]) => value && value.trim() !== '')
     );
 
     // Get the selected model's provider
@@ -168,12 +167,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
 
     // Map model ID to provider for the settings
-    const aiModel = selectedModel.provider as AIModel;
+    const aiModel: AIModel = ['openai', 'anthropic', 'gemini', 'groq'].includes(selectedModel.provider) 
+      ? (selectedModel.provider as AIModel) 
+      : 'default-ai';
 
     // Update settings
     updateSettings({
       ...settings,
-      theme,
+      theme: theme as 'dark' | 'light',
       apiKeys: validApiKeys,
       aiModel
     });
@@ -309,6 +310,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       className="rounded-md"
                     />
                     <label className="block font-medium">{provider.label}</label>
+                    <span className={`ml-auto text-xs font-semibold ${
+                      getProviderStatus(provider.id) === 'active' 
+                        ? 'text-green-500' 
+                        : 'text-red-500'
+                    }`}>
+                      {getProviderStatus(provider.id) === 'active' ? 'Active' : 'Missing Key'}
+                    </span>
                   </div>
                   <p className="text-sm text-neutral-400 mb-3">{provider.description}</p>
                   <div className="relative">

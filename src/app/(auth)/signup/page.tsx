@@ -1,121 +1,189 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
-import { Github } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { toast } from 'sonner';
+import { FcGoogle } from 'react-icons/fc';
+import { BsApple } from 'react-icons/bs';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Icons } from '@/components/icons';
 
-export default function SignUp() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+const signUpSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Auth logic will be implemented later
+type SignUpFormValues = z.infer<typeof signUpSchema>;
+
+export default function SignUpPage() {
+  const router = useRouter();
+  const { signup, signInWithGoogle, loading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<SignUpFormValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      fullName: '',
+    },
+  });
+
+  const onSubmit = async (values: SignUpFormValues) => {
+    try {
+      setIsSubmitting(true);
+      await signup(values.email, values.password, values.fullName);
+    } catch (error) {
+      console.error('Form submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="relative w-full max-w-md  mx-auto z-10">
-      {/* Auth Card */}
-      <div className="backdrop-blur-2xl bg-black/40 border border-zinc-800/50 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/5 to-zinc-900/5 pointer-events-none" />
-        
-        {/* Card Header */}
-        <div className="relative flex flex-col items-center justify-center mb-8">
-          <h2 className="text-2xl font-bold text-white">
+    <div className="min-h-screen flex items-center justify-center  p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-md space-y-6 bg-white/5 backdrop-blur-sm rounded-xl p-6 sm:p-8 border border-white/10">
+        <div className="flex flex-col space-y-2 text-center text-white">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Create an account
-          </h2>
+          </h1>
           <p className="text-sm text-zinc-400">
-            Sign up to get started with LearnFlow
+            Enter your details below to create your account
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 relative">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-zinc-300">
-                Full name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-lg px-3 py-2.5 text-sm bg-black/50 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-700 border focus:outline-none focus:ring-2 focus:ring-zinc-700/10 transition-all hover:bg-black/70"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-lg px-3 py-2.5 text-sm bg-black/50 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-700 border focus:outline-none focus:ring-2 focus:ring-zinc-700/10 transition-all hover:bg-black/70"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-lg px-3 py-2.5 text-sm bg-black/50 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-700 border focus:outline-none focus:ring-2 focus:ring-zinc-700/10 transition-all hover:bg-black/70"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4 pt-2">
-            <button
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Full Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      disabled={isSubmitting}
+                      placeholder="John Doe"
+                      autoComplete="name"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-zinc-400"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-400" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      disabled={isSubmitting}
+                      placeholder="name@example.com"
+                      type="email"
+                      autoComplete="email"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-zinc-400"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-400" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      disabled={isSubmitting}
+                      placeholder="Enter your password"
+                      type="password"
+                      autoComplete="new-password"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-zinc-400"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-400" />
+                </FormItem>
+              )}
+            />
+            <Button
               type="submit"
-              className="relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-700 transition-all"
+              className="w-full bg-white hover:bg-white/90 text-zinc-900"
+              disabled={isSubmitting || loading}
             >
-              Create account
-            </button>
+              {isSubmitting ? (
+                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Sign Up
+            </Button>
+          </form>
+        </Form>
 
-            <button
-              type="button"
-              className="relative w-full flex justify-center py-2.5 px-4 text-sm font-medium rounded-lg bg-black/50 hover:bg-black/70 text-white border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-700 transition-all hover:border-zinc-700 group"
-            >
-              <Github className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-              Continue with GitHub
-            </button>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-white/10" />
           </div>
-        </form>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-zinc-900 px-2 text-zinc-400">
+              Or continue with
+            </span>
+          </div>
+        </div>
 
-        <p className="mt-6 text-center text-sm text-zinc-400">
+        <div className="grid grid-cols-2 gap-4">
+          <Button
+            variant="outline"
+            type="button"
+            disabled={isSubmitting || loading}
+            onClick={() => signInWithGoogle()}
+            className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+          >
+            <FcGoogle className="mr-2 h-4 w-4" />
+            Google
+          </Button>
+          <Button
+            variant="outline"
+            type="button"
+            disabled={isSubmitting || loading}
+            onClick={() => {
+              toast.error('Apple Sign-in coming soon!');
+            }}
+            className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+          >
+            <BsApple className="mr-2 h-4 w-4" />
+            Apple
+          </Button>
+        </div>
+
+        <p className="text-center text-sm text-zinc-400">
           Already have an account?{' '}
           <Link
             href="/signin"
-            className="font-medium text-zinc-400 hover:text-zinc-300 transition-colors"
+            className="underline underline-offset-4 hover:text-white"
           >
             Sign in
-          </Link>
-        </p>
-
-        <p className="mt-4 text-center text-xs text-zinc-500">
-          By signing up, you agree to our{' '}
-          <Link href="#" className="underline hover:text-zinc-400">
-            Terms of Service
-          </Link>{' '}
-          and{' '}
-          <Link href="#" className="underline hover:text-zinc-400">
-            Privacy Policy
           </Link>
         </p>
       </div>

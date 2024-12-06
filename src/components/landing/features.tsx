@@ -6,12 +6,10 @@ import { useTheme } from './theme-context';
 import Image from "next/image";
 import {
   FileText,
-  BookOpen,
   MessageSquareText,
   Youtube,
   Sparkles,
   Brain,
-  Zap,
   Share2,
   Lightbulb
 } from 'lucide-react';

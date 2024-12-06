@@ -17,6 +17,7 @@ export default function NoisyBackground({ opacity = 0.05, fps = 30 }: NoisyBackg
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    let timeoutId: number | NodeJS.Timeout
     let animationFrameId: number
 
     const resizeCanvas = () => {
@@ -41,8 +42,8 @@ export default function NoisyBackground({ opacity = 0.05, fps = 30 }: NoisyBackg
 
     const animate = () => {
       createNoise()
-      animationFrameId = setTimeout(() => {
-        requestAnimationFrame(animate)
+      timeoutId = setTimeout(() => {
+        animationFrameId = requestAnimationFrame(animate)
       }, 1000 / fps)
     }
 
@@ -52,8 +53,13 @@ export default function NoisyBackground({ opacity = 0.05, fps = 30 }: NoisyBackg
     window.addEventListener('resize', resizeCanvas)
 
     return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
       window.removeEventListener('resize', resizeCanvas)
-      clearTimeout(animationFrameId)
     }
   }, [opacity, fps])
 
@@ -65,4 +71,3 @@ export default function NoisyBackground({ opacity = 0.05, fps = 30 }: NoisyBackg
     />
   )
 }
-

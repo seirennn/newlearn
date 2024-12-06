@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Document, Page } from 'react-pdf';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -16,22 +16,35 @@ if (typeof window !== 'undefined') {
 interface PDFViewerProps {
   file: File | null;
   onTextExtracted: (text: string) => void;
+  zoom?: number;
 }
 
-export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
+export function PDFViewer({ file, onTextExtracted, zoom }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [scale, setScale] = useState(1.25);
+  const [scale, setScale] = useState(zoom || 1.25);
   const [rotation, setRotation] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isExtracting, setIsExtracting] = useState(false);
 
-  const extractTextFromPDF = useCallback(async (url: string) => {
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPdfUrl(url);
+      extractTextFromPDF(file);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPdfUrl(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
+
+  const extractTextFromPDF = async (file: File) => {
     try {
       setIsExtracting(true);
-      const arrayBuffer = await fetch(url).then((res) => res.arrayBuffer());
+      const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
 
@@ -39,7 +52,8 @@ export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
-          .map((item: any) => 'str' in item ? item.str : '')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((item: any) => item.str)
           .join(' ');
         fullText += pageText + '\n\n';
       }
@@ -50,23 +64,7 @@ export function PDFViewer({ file, onTextExtracted }: PDFViewerProps) {
     } finally {
       setIsExtracting(false);
     }
-  }, [onTextExtracted]);
-
-  useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPdfUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setPdfUrl(null);
-    }
-  }, [file]);
-
-  useEffect(() => {
-    if (pdfUrl) {
-      extractTextFromPDF(pdfUrl);
-    }
-  }, [pdfUrl, extractTextFromPDF]);
+  };
 
   useEffect(() => {
     const updateContainerWidth = () => {

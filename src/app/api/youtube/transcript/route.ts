@@ -3,7 +3,7 @@ import { YoutubeTranscript } from 'youtube-transcript';
 
 export async function POST(request: Request) {
   try {
-    const { videoId } = await request.json();
+    const { videoId } = await request.json() as { videoId: string };
 
     if (!videoId) {
       return NextResponse.json(
@@ -37,20 +37,19 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({ transcript });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching transcript:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch transcript. Make sure the video exists and has captions available.';
       return NextResponse.json(
-        { 
-          error: error.message || 'Failed to fetch transcript. Make sure the video exists and has captions available.'
-        },
+        { error: errorMessage },
         { status: 404 }
       );
     }
   } catch (error) {
     console.error('Error in transcript API:', error);
     return NextResponse.json(
-      { error: 'Failed to process transcript request' },
-      { status: 500 }
+      { error: 'Invalid request format' },
+      { status: 400 }
     );
   }
 }

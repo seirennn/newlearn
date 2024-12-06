@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, AIModel } from '@/contexts/SettingsContext';
 import { Check, Copy, Eye, EyeOff, Info, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -68,7 +68,7 @@ export function APISettings() {
     // Filter out empty keys and trim values
     const validKeys = Object.fromEntries(
       Object.entries(localKeys)
-        .filter(([_, value]) => value && value.trim() !== '')
+        .filter(([/* key */, value]) => value && value.trim() !== '')
         .map(([key, value]) => [key, value.trim()])
     );
 
@@ -83,7 +83,7 @@ export function APISettings() {
     const newSettings = {
       ...settings,
       apiKeys: validKeys,
-      aiModel: activeModel
+      aiModel: activeModel as AIModel
     };
 
     console.log('Saving settings:', {

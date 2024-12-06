@@ -15,7 +15,7 @@ export default function DashboardLayout({
       <ModelProvider>
         <ContentProvider>
           <ToolsProvider>
-            <div className="flex min-h-screen bg-[#080808] text-white">
+            <div className="h-screen overflow-hidden bg-[#080808] text-white">
               {children}
             </div>
           </ToolsProvider>

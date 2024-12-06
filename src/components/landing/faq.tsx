@@ -172,7 +172,7 @@ export default function FAQ() {
           transition={{ delay: 0.8, duration: 0.6 }}
         >
           <p className={`text-base transition-colors duration-500 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-            Can't find what you're looking for?{' '}
+            Can&apos;t find what you&apos;re looking for?{' '}
             <Link
               href="mailto:support@learnflow.ai"
               className={`relative inline-flex font-medium group transition-colors duration-500
