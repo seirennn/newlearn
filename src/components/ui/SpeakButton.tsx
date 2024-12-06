@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, Settings2, Square } from 'lucide-react';
-import { VoiceSelector } from './VoiceSelector';
-import { Button } from './button';
+import { VoiceSelector } from '@/components/ui/VoiceSelector';
+import { Button } from '@/components/ui/button';
 import { loadVoices, speakText, stopSpeaking, CustomVoice } from '@/utils/voiceService';
 
 interface SpeakButtonProps {

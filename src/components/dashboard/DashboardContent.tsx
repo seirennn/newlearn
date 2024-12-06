@@ -8,12 +8,12 @@ import { useContent } from '@/contexts/ContentContext';
 import { useTools } from '@/contexts/ToolsContext';
 import { PDFViewer } from '../content/PDFViewer';
 import TextEditor from '@/components/content/TextEditor';
-import { YouTubeViewer } from '../content/YouTubeViewer';
-import { ResizeHandle } from './ResizeHandle';
-import { ChatTool } from '../tools/ChatTool';
-import { FlashcardsTool } from '../tools/FlashcardsTool';
-import { QuizTool } from '../tools/QuizTool';
-import { SummaryTool } from '../tools/SummaryTool';
+import { YouTubeViewer } from '@/components/content/YouTubeViewer';
+import { ResizeHandle } from '@/components/dashboard/ResizeHandle';
+import { ChatTool } from '@/components/tools/ChatTool';
+import { FlashcardsTool } from '@/components/tools/FlashcardsTool';
+import { QuizTool } from '@/components/tools/QuizTool';
+import { SummaryTool } from '@/components/tools/SummaryTool';
 import { pdfjs } from 'react-pdf';
 
 if (typeof window !== 'undefined') {
