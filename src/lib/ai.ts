@@ -194,7 +194,19 @@ export async function generateChatResponse(messages: OpenAI.Chat.Completions.Cha
     if (settings.model === 'gemini-pro') {
       // For Gemini, we'll use the last message as the prompt
       const lastMessage = messages[messages.length - 1].content;
-      return await generateWithGemini(lastMessage);
+      
+      // Type guard to safely access the 'text' property
+      const prompt = typeof lastMessage === 'string' 
+        ? lastMessage 
+        : Array.isArray(lastMessage) 
+          ? lastMessage.map(part => 
+              typeof part === 'object' && 'text' in part 
+                ? part.text 
+                : ''
+            ).join(' ') 
+          : '';
+      
+      return await generateWithGemini(prompt);
     } else {
       const content = await generateWithOpenAI(messages);
       return content || '';

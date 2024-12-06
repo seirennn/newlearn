@@ -77,8 +77,8 @@ export class AuthService {
         fullName,
         photoURL,
         provider,
-        createdAt: timestamp,
-        lastLoginAt: timestamp,
+        createdAt: timestamp.toDate(),
+        lastLoginAt: timestamp.toDate(),
         location,
         deviceInfo,
       };
@@ -140,7 +140,7 @@ export class AuthService {
       const activity: LoginActivity = {
         uid,
         email,
-        timestamp,
+        timestamp: timestamp.toDate(),
         success,
         provider,
         location,
@@ -157,9 +157,8 @@ export class AuthService {
       // Update last login time in user profile if login was successful
       if (success && (action === 'signin' || action === 'signup')) {
         await this.updateUserProfile(uid, {
-          lastLoginAt: timestamp,
+          lastLoginAt: timestamp.toDate() as Date,
           location,
-          deviceInfo,
         });
       }
     } catch (error) {
