@@ -12,7 +12,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signInWithGoogle, signInWithApple } = useAuth();
+  const { signin, signInWithGoogle, signInWithApple } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,11 +20,15 @@ export default function SignInPage() {
     setLoading(true);
     
     try {
-      await signIn(email, password);
+      await signin(email, password);
       toast.success('Successfully signed in!');
       router.push('/dashboard');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to sign in');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Failed to sign in');
+      } else {
+        toast.error('Failed to sign in');
+      }
     } finally {
       setLoading(false);
     }
@@ -36,8 +40,12 @@ export default function SignInPage() {
       await signInWithGoogle();
       toast.success('Successfully signed in with Google!');
       router.push('/dashboard');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to sign in with Google');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Failed to sign in with Google');
+      } else {
+        toast.error('Failed to sign in with Google');
+      }
     } finally {
       setLoading(false);
     }
@@ -49,8 +57,12 @@ export default function SignInPage() {
       await signInWithApple();
       toast.success('Successfully signed in with Apple!');
       router.push('/dashboard');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to sign in with Apple');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Failed to sign in with Apple');
+      } else {
+        toast.error('Failed to sign in with Apple');
+      }
     } finally {
       setLoading(false);
     }

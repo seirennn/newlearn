@@ -94,11 +94,14 @@ export function ChatTool() {
 
     try {
       const response = await makeAIRequest('chat', {
-        prompt: input.trim(),
+        content: input.trim(),
         context: content,
         history: messages,
         format: 'text'
-      }, settings);
+      }, {
+        ...settings,
+        temperature: settings.temperature ?? 0.7
+      });
 
       const assistantMessage = { role: 'assistant' as const, content: response };
       setMessages(prev => [...prev, assistantMessage]);

@@ -17,12 +17,18 @@ interface ContentContextType {
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export function ContentProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState({
+  const [state, setState] = useState<ContentContextType>({
     content: '',
-    contentType: 'text' as const,
-    pdfUrl: null as string | null,
-    youtubeUrl: null as string | null,
-    isTranscriptLoading: false
+    contentType: 'text',
+    pdfUrl: null,
+    youtubeUrl: null,
+    isTranscriptLoading: false,
+    setContent: () => {},
+    setContentType: () => {},
+    setPdfUrl: () => {},
+    setYoutubeUrl: () => {},
+    setIsTranscriptLoading: () => {},
+    resetContent: () => {}
   });
 
   const handleSetContent = useCallback((newContent: string) => {
@@ -35,10 +41,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const handleSetContentType = useCallback((type: 'pdf' | 'text' | 'youtube') => {
     setState(prev => ({
       ...prev,
-      contentType: type,
-      content: prev.content,
-      youtubeUrl: prev.youtubeUrl,
-      pdfUrl: prev.pdfUrl
+      contentType: type
     }));
   }, []);
 
@@ -71,7 +74,13 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       contentType: 'text',
       pdfUrl: null,
       youtubeUrl: null,
-      isTranscriptLoading: false
+      isTranscriptLoading: false,
+      setContent: () => {},
+      setContentType: () => {},
+      setPdfUrl: () => {},
+      setYoutubeUrl: () => {},
+      setIsTranscriptLoading: () => {},
+      resetContent: () => {}
     });
   }, []);
 

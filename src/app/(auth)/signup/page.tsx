@@ -48,8 +48,14 @@ export default function SignUpPage() {
     try {
       setIsSubmitting(true);
       await signup(values.email, values.password, values.fullName);
-    } catch (error) {
-      console.error('Form submission error:', error);
+      toast.success('Account created successfully!');
+      router.push('/dashboard');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Failed to create account');
+      } else {
+        toast.error('Failed to create account');
+      }
     } finally {
       setIsSubmitting(false);
     }

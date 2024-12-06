@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useContent } from '@/contexts/ContentContext';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, AIModel } from '@/contexts/SettingsContext';
 import { generateFlashcards } from '@/utils/api';
 import { Loader2, Brain, ChevronLeft, ChevronRight, Redo } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,15 @@ import { cn } from '@/lib/utils';
 type Flashcard = {
   front: string;
   back: string;
+};
+
+type AISettings = {
+  apiKeys: {
+    gemini: string;
+  };
+  aiModel: AIModel;
+  temperature: number;
+  maxTokens: number;
 };
 
 export function FlashcardsTool() {
@@ -32,7 +41,17 @@ export function FlashcardsTool() {
     setIsFlipped(false);
 
     try {
-      const response = await generateFlashcards(content, settings);
+      // Convert settings to AISettings
+      const aiSettings: AISettings = {
+        apiKeys: {
+          gemini: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '',
+        },
+        aiModel: (settings.aiModel ?? 'gemini') as AIModel,
+        temperature: settings.temperature ?? 0.7,
+        maxTokens: 2000
+      };
+
+      const response = await generateFlashcards(content, aiSettings);
       let newCards;
       
       try {

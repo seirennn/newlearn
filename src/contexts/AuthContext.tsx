@@ -10,7 +10,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   signInWithPopup,
-  updateProfile,
+  AuthError,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { AuthService } from '@/lib/services/auth.service';
@@ -74,10 +74,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Signed in successfully!');
       router.push('/dashboard');
-    } catch (error: any) {
-      const errorMessage = getAuthErrorMessage(error.code);
-      toast.error(errorMessage);
-      console.error('Signin error:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errorMessage = getAuthErrorMessage((error as AuthError).code);
+        toast.error(errorMessage);
+        console.error('Signin error:', error);
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
@@ -99,10 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Account created successfully!');
       router.push('/dashboard');
-    } catch (error: any) {
-      const errorMessage = getAuthErrorMessage(error.code);
-      toast.error(errorMessage);
-      console.error('Signup error:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errorMessage = getAuthErrorMessage((error as AuthError).code);
+        toast.error(errorMessage);
+        console.error('Signup error:', error);
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
@@ -136,10 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Signed in with Google successfully!');
       router.push('/dashboard');
-    } catch (error: any) {
-      const errorMessage = getAuthErrorMessage(error.code);
-      toast.error(errorMessage);
-      console.error('Google signin error:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errorMessage = getAuthErrorMessage((error as AuthError).code);
+        toast.error(errorMessage);
+        console.error('Google sign in error:', error);
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
@@ -171,15 +183,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           true
         );
       }
-    } catch (error) {
-      await AuthService.logLoginActivity(
-        'unknown',
-        'unknown',
-        'apple',
-        'signin',
-        false
-      );
-      throw error;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errorMessage = getAuthErrorMessage((error as AuthError).code);
+        toast.error(errorMessage);
+        console.error('Apple sign in error:', error);
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     }
   };
 
@@ -198,9 +209,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signOut(auth);
       toast.success('Signed out successfully');
       router.push('/signin');
-    } catch (error: any) {
-      toast.error('Error signing out');
-      console.error('Signout error:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errorMessage = getAuthErrorMessage((error as AuthError).code);
+        toast.error(errorMessage);
+        console.error('Signout error:', error);
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     }
   };
 

@@ -36,6 +36,7 @@ export function SummaryTool() {
     try {
       const result = await generateSummary(content, {
         ...settings,
+        temperature: settings.temperature ?? 0.7,  
         systemPrompt: contentType === 'youtube' 
           ? `You are analyzing a YouTube video transcript. Create a comprehensive summary that:
 1. Captures the main topics and key points

@@ -54,7 +54,7 @@ async function generateWithGemini(prompt: string) {
   return data.candidates[0].content.parts[0].text;
 }
 
-async function generateWithOpenAI(messages: { role: string; content: string }[]) {
+async function generateWithOpenAI(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
   const openai = createOpenAIClient();
   const settings = getSettings();
   
@@ -187,7 +187,7 @@ export async function generateSummary(text: string): Promise<string> {
   }
 }
 
-export async function generateChatResponse(messages: { role: string; content: string }[]): Promise<string> {
+export async function generateChatResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<string> {
   const settings = getSettings();
 
   try {

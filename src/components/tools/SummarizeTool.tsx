@@ -26,7 +26,11 @@ export function SummarizeTool() {
     setSummary('');
 
     try {
-      const newSummary = await generateSummary(content, settings, { length: summaryLength });
+      const newSummary = await generateSummary(content, { 
+        ...settings, 
+        systemPrompt: `Generate a ${summaryLength} summary of the content.`,
+        temperature: settings.temperature ?? 0.7 // Add a default temperature
+      });
       if (typeof newSummary !== 'string' || !newSummary.trim()) {
         throw new Error('Invalid summary response');
       }
