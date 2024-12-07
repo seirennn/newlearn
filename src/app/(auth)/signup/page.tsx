@@ -134,7 +134,7 @@ export default function SignUpPage() {
                 </FormItem>
               )}
             />
-            <Button
+            <button
               type="submit"
               className="w-full bg-white hover:bg-white/90 text-zinc-900"
               disabled={isSubmitting || loading}
@@ -143,7 +143,7 @@ export default function SignUpPage() {
                 <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Sign Up
-            </Button>
+            </button>
           </form>
         </Form>
 

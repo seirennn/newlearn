@@ -4,7 +4,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from '@/components/landing/theme-context';
-import { ClerkProvider } from '@clerk/nextjs';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,15 +18,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className={inter.className}>
-          <ThemeProvider>
-            {children}
-            <Toaster position="bottom-right" />
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        <html lang="en">
+          <body className={inter.className}>
+            <ThemeProvider>
+              {children}
+              <Toaster position="bottom-right" />
+            </ThemeProvider>
+          </body>
+        </html>
   );
 }
