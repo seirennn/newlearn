@@ -18,7 +18,6 @@ export function SummaryTool() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug log when content changes
   useEffect(() => {
     console.log('SummaryTool - Content updated:', {
       contentLength: content?.length,

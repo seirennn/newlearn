@@ -15,7 +15,6 @@ function MainContent() {
 
   return (
     <div className="relative min-h-screen"  style={{ zoom: '80%' }}>
-      {/* Performance optimized background */}
       <div className={`fixed inset-0 -z-10 ${isDark ? 'bg-black' : 'bg-white'}`}>
         <div className={`absolute inset-0 ${isDark ? 'bg-black' : 'bg-white'}`} />
       </div>
