@@ -21,6 +21,8 @@ export function getAuthErrorMessage(errorCode: string): string {
       return 'No account found with this email. Please sign up.';
     case 'auth/wrong-password':
       return 'Incorrect password. Please try again.';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password. Please check your credentials and try again.';
     case 'auth/popup-closed-by-user':
       return 'Sign-in popup was closed before completing. Please try again.';
     case 'auth/cancelled-popup-request':

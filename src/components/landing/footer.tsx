@@ -33,17 +33,17 @@ const navigation = {
   social: [
     {
       name: 'Twitter',
-      href: '#',
+      href: 'https://x.com/jordann_lh',
       icon: Twitter,
     },
     {
       name: 'GitHub',
-      href: '#',
+      href: 'https://github.com/seirennn',
       icon: Github,
     },
     {
       name: 'LinkedIn',
-      href: '#',
+      href: 'https://www.linkedin.com/in/lanso-humtsoe-9454b8308/',
       icon: Linkedin,
     },
   ],

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Sun, Moon, ChevronDown } from 'lucide-react';
+import { Sun, Moon, ChevronDown, Menu, X } from 'lucide-react';
 import { useTheme } from './theme-context';
 import { useState, useEffect } from 'react';
 
@@ -36,12 +36,14 @@ export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setIsDropdownOpen(false);
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -89,8 +91,20 @@ export default function Navbar() {
               LearnFlow
             </span>
           </Link>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 rounded-lg hover:bg-zinc-100/10"
+          >
+            {isMobileMenuOpen ? (
+              <X className={`w-6 h-6 ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`} />
+            ) : (
+              <Menu className={`w-6 h-6 ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`} />
+            )}
+          </button>
           
-          {/* Center Nav Items */}
+          {/* Center Nav Items - Desktop */}
           <div className="hidden md:flex items-center justify-center space-x-8 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
               <button
@@ -156,6 +170,90 @@ export default function Navbar() {
                     </Link>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          <div className={`md:hidden fixed inset-x-0 top-[72px] p-4 ${
+            isDark ? 'bg-zinc-900/95' : 'bg-white/95'
+          } backdrop-blur-md border-b ${
+            isDark ? 'border-zinc-800' : 'border-zinc-200'
+          } transition-all duration-300 ${
+            isMobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
+          }`}>
+            <div className="space-y-4">
+              {/* Navigation Items */}
+              {navItems.map((item) => (
+                <button
+                  key={item.name}
+                  onClick={() => scrollToSection(item.id)}
+                  className={`block w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    isDark 
+                      ? 'text-zinc-100 hover:bg-zinc-800' 
+                      : 'text-zinc-900 hover:bg-zinc-100'
+                  }`}
+                >
+                  {item.name}
+                </button>
+              ))}
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                  isDark 
+                    ? 'text-zinc-100 hover:bg-zinc-800' 
+                    : 'text-zinc-900 hover:bg-zinc-100'
+                }`}
+              >
+                <span>Theme</span>
+                {isDark ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Auth Buttons */}
+              <div className="pt-4 space-y-2 border-t border-zinc-200 dark:border-zinc-800">
+                <Link
+                  href="/login"
+                  className={`block w-full text-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    isDark 
+                      ? 'text-zinc-100 hover:bg-zinc-800' 
+                      : 'text-zinc-900 hover:bg-zinc-100'
+                  }`}
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  className={`block w-full text-center px-4 py-2 rounded-lg text-sm font-medium ${
+                    isDark
+                      ? 'bg-white text-black hover:bg-zinc-200'
+                      : 'bg-black text-white hover:bg-zinc-800'
+                  } transition-all duration-300`}
+                >
+                  Sign Up
+                </Link>
+              </div>
+
+              {/* Legal Links */}
+              <div className="pt-4 space-y-2 border-t border-zinc-200 dark:border-zinc-800">
+                {legalItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`block w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      isDark 
+                        ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800' 
+                        : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                    }`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>

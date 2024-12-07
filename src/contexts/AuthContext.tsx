@@ -61,9 +61,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signin = async (email: string, password: string) => {
     try {
       setLoading(true);
+      
+      // Attempt to sign in with Firebase
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Only proceed if we have a valid user
+      if (!userCredential?.user) {
+        throw new Error('No user returned from authentication');
+      }
+
       const { user } = userCredential;
 
+      // Check if user exists in our database
+      const userProfile = await AuthService.getUserProfile(user.uid);
+      if (!userProfile) {
+        // If user doesn't exist in our database, create a profile
+        await AuthService.createUserProfile(
+          user.uid,
+          email,
+          user.displayName || email.split('@')[0],
+          user.photoURL || '',
+          'email'
+        );
+      }
+
+      // Log successful login
       await AuthService.logLoginActivity(
         user.uid,
         email,
@@ -72,15 +94,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         true
       );
 
+      // Only show success message and redirect if everything above succeeded
       toast.success('Signed in successfully!');
       router.push('/dashboard');
+      
     } catch (error: unknown) {
+      // Handle Firebase auth errors
       if (error instanceof Error) {
-        const errorMessage = getAuthErrorMessage((error as AuthError).code);
+        const errorCode = (error as AuthError).code;
+        console.error('Authentication error:', { code: errorCode, message: error.message });
+        
+        // Get user-friendly error message
+        const errorMessage = getAuthErrorMessage(errorCode || 'auth/unknown-error');
         toast.error(errorMessage);
-        console.error('Signin error:', error);
+
+        // Log failed login attempt
+        try {
+          await AuthService.logLoginActivity(
+            'unknown',
+            email,
+            'email',
+            'signin',
+            false
+          );
+        } catch (logError) {
+          console.error('Error logging failed login:', logError);
+        }
       } else {
-        toast.error('An unexpected error occurred');
+        console.error('Unknown error during sign in:', error);
+        toast.error('An unexpected error occurred during sign in');
+      }
+
+      // Ensure user is signed out in case of any error
+      try {
+        await signOut(auth);
+      } catch (signOutError) {
+        console.error('Error signing out after failed login:', signOutError);
       }
     } finally {
       setLoading(false);
